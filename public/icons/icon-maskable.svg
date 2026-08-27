@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Dose Witness mark">
+  <rect width="512" height="512" fill="#071319"/>
+  <path d="M138 112h236a26 26 0 0 1 26 26v236a26 26 0 0 1-26 26H138a26 26 0 0 1-26-26V138a26 26 0 0 1 26-26Z" fill="#15313b" stroke="#45e6e1" stroke-width="15"/>
+  <circle cx="184" cy="184" r="29" fill="none" stroke="#b9f56a" stroke-width="14"/>
+  <circle cx="328" cy="184" r="29" fill="none" stroke="#b9f56a" stroke-width="14"/>
+  <path d="M184 218v20M328 218v20M208 269l36 36 66-74" fill="none" stroke="#f5f0de" stroke-width="23" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M184 238l54 18M328 238l-54 18" fill="none" stroke="#b9f56a" stroke-width="10" stroke-linecap="round"/>
+</svg>

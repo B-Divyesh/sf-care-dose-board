@@ -1,0 +1,20 @@
+{
+  "slug": "care-dose-board",
+  "title": "Dose Witness",
+  "artifact_class": "pwa-offline",
+  "user": "Families coordinating an elderly relative’s medications who need every caregiver to see whether a particular dose was actually given.",
+  "smallest_useful_product": "A local-first PWA for one household: medication cards, scheduled doses, an explicit given/skipped/uncertain status, caregiver initials, offline printable handoff, and encrypted export/import between devices.",
+  "non_goals": [
+    "Medication interaction checking",
+    "Prescription changes or dosage recommendations",
+    "Pharmacy ordering",
+    "Clinical advice"
+  ],
+  "monetization": "one-time",
+  "constraints": [
+    "Not a medical device",
+    "Encrypted exported records",
+    "No dosage recommendations",
+    "Accessible type, contrast, and large controls"
+  ]
+}
