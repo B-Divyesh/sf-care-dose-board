@@ -107,7 +107,8 @@ p { line-height: 1.55; }
 .hero-copy { padding: clamp(28px, 5vw, 56px); display: flex; flex-direction: column; justify-content: center; }
 .hero-copy h2 { max-width: 15ch; font-size: clamp(1.75rem, 4vw, 2.7rem); }
 .hero-copy p { max-width: 51ch; color: var(--muted); font-size: 18px; }
-.hero-art { min-height: 360px; object-fit: cover; width: 100%; height: 100%; border-left: 1px solid var(--line); }
+.hero-picture { min-height: 360px; display: block; overflow: hidden; border-left: 1px solid var(--line); }
+.hero-art { display: block; object-fit: cover; width: 100%; height: 100%; }
 .promise-row { margin: 32px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; list-style: none; }
 .promise-row li { padding-top: 14px; border-top: 3px solid var(--line); color: var(--muted); }
 .promise-row strong { display: block; margin-bottom: 5px; color: var(--text); }
@@ -189,7 +190,7 @@ dialog::backdrop { background: rgb(1 8 11 / 78%); backdrop-filter: blur(3px); }
   .status-line { justify-content: flex-start; }
   .hero-empty { grid-template-columns: 1fr; }
   .hero-copy { padding: 28px 22px; }
-  .hero-art { min-height: 230px; max-height: 320px; border-top: 1px solid var(--line); border-left: 0; }
+  .hero-picture { min-height: 230px; max-height: 320px; border-top: 1px solid var(--line); border-left: 0; }
   .promise-row, .panel-grid { grid-template-columns: 1fr; }
   .time-fields { grid-template-columns: 1fr; }
   .activity-item { grid-template-columns: 1fr auto; gap: 4px 12px; }

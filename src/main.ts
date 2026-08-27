@@ -95,7 +95,7 @@ function renderToday(): string {
         <p>Add the medicines and times from the existing care plan. When a dose is due, a caregiver records given, skipped, or uncertain with their initials.</p>
         <div class="button-row"><button class="button primary" type="button" data-add-med>Add the first medication</button><button class="button" type="button" data-view="handoff">How handoff works</button></div>
       </div>
-      <img class="hero-art" src="/art/dose-watch.webp" width="960" height="640" alt="An illustrated night-time household dose board where three caregiver marks converge on one witnessed check" decoding="async" fetchpriority="high" />
+      <picture class="hero-picture"><source srcset="/art/dose-watch.avif" type="image/avif"/><source srcset="/art/dose-watch.webp" type="image/webp"/><img class="hero-art" src="/art/dose-watch.jpg" width="960" height="640" alt="An illustrated night-time household dose board where three caregiver marks converge on one witnessed check" decoding="async" fetchpriority="high" /></picture>
     </section>
     <ul class="promise-row" aria-label="Product promises"><li><strong>Private by default</strong>Stored only on this device.</li><li><strong>Works offline</strong>Record care without a signal.</li><li><strong>Honest states</strong>Given, skipped, or uncertain.</li></ul>`;
     return content;

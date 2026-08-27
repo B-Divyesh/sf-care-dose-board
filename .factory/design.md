@@ -52,7 +52,7 @@ UI transitions last 180–240ms and use only opacity and transform. Dose state c
 
 ## Asset plan and provenance
 
-- `public/art/dose-watch.webp`: original generated editorial hero, used on the first-run state only; responsive, explicit dimensions, under 300 KB.
+- `public/art/dose-watch.avif`, `.webp`, and `.jpg`: original generated editorial hero with modern formats plus fallback, used on the first-run state only; explicit 960×640 dimensions. AVIF is 26 KB, WebP 33 KB, and fallback JPEG 65 KB—each well under the 300 KB hero budget.
 - App icons and interface marks: original hand-authored SVG/CSS geometry, not icon-library assets.
 
 ### Prompt sheet

@@ -7,6 +7,8 @@ test('records a witnessed dose, persists it, and stays available offline', async
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: /today’s dose board/i })).toBeVisible();
+  let accessibility = await new AxeBuilder({ page }).analyze();
+  expect(accessibility.violations.filter(item => ['serious', 'critical'].includes(item.impact ?? ''))).toEqual([]);
 
   await page.getByRole('button', { name: 'Add the first medication' }).click();
   await page.getByLabel('Medication name *').fill('Evening tablet');
@@ -29,10 +31,12 @@ test('records a witnessed dose, persists it, and stays available offline', async
   await page.getByRole('link', { name: /handoff/i }).first().click();
   await expect(page.getByText(/Packet was open/)).toBeVisible();
 
-  const accessibility = await new AxeBuilder({ page }).analyze();
+  accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations.filter(item => ['serious', 'critical'].includes(item.impact ?? ''))).toEqual([]);
 
   await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.evaluate(() => dispatchEvent(new Event('offline')));
+  await expect(page.getByText(/Offline — this board still saves/)).toBeVisible();
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole('heading', { level: 1, name: 'Handoff' })).toBeVisible();

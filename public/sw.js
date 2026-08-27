@@ -8,7 +8,9 @@ const SHELL = [
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable-512.png',
-  '/art/dose-watch.webp'
+  '/art/dose-watch.avif',
+  '/art/dose-watch.webp',
+  '/art/dose-watch.jpg'
 ];
 
 self.addEventListener('install', event => {
