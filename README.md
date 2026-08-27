@@ -59,7 +59,7 @@ The app cannot recover an export passphrase. Keep an appropriate printed or encr
 
 ## Deployment
 
-Deploy the contents of `dist/` as a static site with SPA fallback to `index.html`. Serve `sw.js` from the site root over HTTPS without an immutable cache header so updates can be detected. Hashed files under `assets/` may be cached immutably.
+Deploy the contents of `dist/` as a Standard static site. The generated `staticwebapp.config.json` supplies the SPA fallback, a strict Content-Security-Policy and Permissions-Policy, `no-cache` for `sw.js`, and one-year immutable caching for Vite’s hashed `/assets/*` files. Each production build derives its service-worker cache namespace and manifest start query from the release contents, so a new worker can safely replace a prior shell.
 
 Checkout and license verification use only the Sociobot billing API. The product slug is derived from this repository and no payment-provider credentials or product IDs are embedded.
 

@@ -1,31 +1,18 @@
-# Dose Witness — verification handoff
+# Dose Witness — repair handoff
 
-## Independent verification status: **FAIL**
+Completed August 27, 2026 for work order `care-dose-board-repair-1`.
 
-Candidate `19cdafc7ff4c95ccbbccb93c8438e8122848a038` was independently tested
-on 2026-08-27 from a clean checkout and against
-`https://care-dose-board.sociobot.in/`. The live site is byte-for-byte the
-candidate's `dist/` output, but it does **not** meet acceptance yet.
+## What changed
 
-Release blocker: the visible keyboard skip link changes the fragment but leaves
-focus on `body`, instead of moving it to `#main-content`; it does not let a
-keyboard user bypass header navigation. See
-[`.factory/verification.md`](verification.md) for exact reproduction and the
-full evidence.
+- Fixed the keyboard skip link: activation now moves focus to `#main-content`, retains the `#main-content` fragment, and leaves the next Tab at board content rather than header navigation.
+- Replaced the fixed service-worker cache name with a 16-character SHA-256 revision calculated from the exact final `dist/` release files. The generated web manifest uses the same revision in its PWA start query.
+- The worker precaches the release shell, uses cache-first static assets, navigation network-first with an offline fallback, calls `skipWaiting`/`clients.claim`, and deletes older Dose Witness cache namespaces during activation. Cache matching ignores response `Vary` differences so a cached shell works with static hosting as well as the local preview server.
+- Added `staticwebapp.config.json` for Standard Static Web Apps: immutable one-year caching for hashed `/assets/*`, no-cache worker/manifest behavior, strict CSP, Permissions-Policy, nosniff, referrer policy, and SPA fallback.
+- Removed inline reload handlers so the CSP can keep `script-src 'self'`; encrypted IndexedDB care data and AES-256-GCM export/import behavior were not changed.
 
-Additional medium findings: the static host gives hashed JS/CSS only
-`max-age=30` rather than immutable caching, and the service worker uses a
-fixed `dose-witness-shell-v1` cache namespace rather than a release-derived
-name. Live responses also lack CSP and Permissions-Policy (low severity).
+## Regression coverage and local verification
 
-Passing evidence: clean `npm ci`; `npm test` (5/5); exact `npm run build`;
-Playwright e2e (2/2 after installing Chromium); independent 1440px/390px
-flows, encryption/error recovery, no serious/critical axe findings, no console
-errors, and real live service-worker offline reload. Lighthouse mobile was 99
-Performance / 100 Accessibility / 100 Best Practices / 100 SEO. Product code
-was not modified during verification.
-
-## How to reproduce
+Run from a clean checkout:
 
 ```sh
 npm ci
@@ -35,57 +22,25 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-For the full functional, privacy, policy, cache, deployment, and PWA evidence,
-read `.factory/verification.md`.
+Passed locally on August 27, 2026:
 
----
+- `npm test` — 5/5 unit tests (scheduling, merge, encrypted export/import and error handling).
+- `npm run build` — TypeScript check and production `dist/` build passed. Initial JS is 36.83 kB (11.98 kB gzip); CSS is 14.08 kB (3.93 kB gzip).
+- `npm run test:e2e` — 5/5 mobile Chromium tests passed: exact skip-focus keyboard path; release-derived worker cache and prior-cache cleanup; static policy contract; encryption/persistence plus `context.setOffline(true)` reload; and legal-page axe scans.
+- Axe scans in the browser suite have zero serious/critical findings. The functional mobile flow records an uncertain witnessed dose, persists it, and reloads the same handoff offline without console errors.
 
-# Original builder handoff (superseded by verification result)
+## Deployment and live verification
 
-Completed August 27, 2026 for work order `care-dose-board-build-1`.
+Deployed `dist/` as a Standard Azure Static Web App to
+<https://care-dose-board.sociobot.in/> on August 27, 2026 (final deployment
+`9f654589-b906-4723-89f4-e30d97b46249`).
 
-## What was built
+- `/opt/fleet/lib/verify-url.sh` passed live: HTTPS 200, 700 ms load in its desktop check, no console errors, title and `lang`, exactly one h1, main landmark, and no missing image alt or unlabeled button.
+- Live header checks confirm `Cache-Control: public, max-age=31536000, immutable` for the hashed JS/CSS assets; `no-cache, no-store, must-revalidate` for `sw.js`; and revalidation for the manifest. CSP, Permissions-Policy, nosniff, and referrer policy are all present. The `.webmanifest` MIME is `application/manifest+json`.
+- Live Chromium exercised the skip link (focused skip link → focused `#main-content`), waited for the active worker, switched offline, and reloaded successfully. The same run found zero serious/critical axe issues on desktop and Pixel 5 emulation, no console errors, and no mobile horizontal overflow.
 
-- A production Vite + TypeScript PWA with a product-specific “night-watch medicine board” visual system.
-- Daily medication scheduling from the household’s existing care plan, including names, written strength, instructions, up to three daily times, pause/edit, and confirmed deletion.
-- Explicit `given`, `skipped`, and `uncertain` dose records with required caregiver initials, optional handoff notes, editable status, timestamped latest state, and an append-only visible activity trail for corrections.
-- Past-due context and today summary. Blank records are explicitly described as not proving a missed dose.
-- IndexedDB local persistence with validation on load/import and useful blocked-storage messaging.
-- Printable handoff with person name, print timestamp, daily summary, and recent witnessed activity.
-- AES-256-GCM encrypted `.dosewitness` export/import. PBKDF2-SHA-256 uses 250,000 iterations; imports merge records by timestamp rather than replacing a device’s whole board.
-- Offline app shell, versioned cache, navigation fallback, install manifest, 192/512/maskable icons, update notification, and offline state messaging.
-- One-time Sociobot license flow: `$19` disclosure, hosted checkout link, query-token capture, local token storage, daily-cached background verification, restore-by-paste, and removal. Free use supports three active medications; recording, history, printing, export/import, accessibility, and safety copy are never gated.
-- `/privacy` and `/terms` routes, not-a-medical-device positioning, MIT license, and complete run/deploy documentation.
-- Original generated hero in AVIF (26 KB), WebP (33 KB), and JPEG fallback (65 KB), with prompt, review, date, model, and disclosure recorded in `.factory/design.md` and `assets/src/`.
+## Known product boundaries
 
-## Verification
-
-All checks were run against the final production build:
-
-- `npm test`: 2 files, 5 unit tests passed (daily scheduling, record attachment, last-write-wins merge, encrypted round-trip, wrong/short passphrase rejection).
-- `npm run build`: passed; output is `dist/` with `dist/index.html` at its root.
-- Production bundle: 36.40 KB JavaScript / 11.88 KB gzip; 14.08 KB CSS / 3.93 KB gzip. Both are comfortably inside the 200 KB JS and 50 KB CSS budgets.
-- `npm run test:e2e`: 2 Playwright mobile-Chromium tests passed. The suite adds a medication, records an uncertain dose with initials and a note, reloads to prove IndexedDB persistence, checks visible handoff history, performs axe scans, disables the browser network, reloads the full app from the service worker, and confirms the data remains present. It also checks both legal routes.
-- `/opt/fleet/lib/verify-url.sh`: passed at 390×844 and desktop; no console errors, title present, `lang="en"`, exactly one `h1`, main landmark present, zero images missing alt, and zero unlabeled buttons.
-- Axe: zero serious or critical violations on the empty board, populated handoff, privacy, and terms views.
-- Lighthouse mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; FCP 0.9 s, LCP 1.2 s, CLS 0, total blocking time 0 ms.
-- Manual visual review: 390px and 1440px screenshots checked; controls remain at least 44px, the mobile dock respects the safe area, content remains scrollable, and print styling removes app chrome.
-
-## Run and deploy
-
-```sh
-npm install
-npm test
-npm run build
-npx playwright install chromium
-npm run test:e2e
-```
-
-Deploy `dist/` as a static SPA with unknown paths falling back to `index.html`. Serve the root `sw.js` without immutable caching; hashed files in `assets/` can be cached immutably.
-
-## Known gaps and next steps
-
-- The factory still needs to register the production/test paid product and confirm the hosted return URL. No product ID or provider secret is stored in this repository.
-- Device sharing is deliberately explicit encrypted file handoff, not real-time cloud sync. Households must exchange a new export to propagate later changes.
-- V1 schedules are daily and support three times per medication. Weekday-only, as-needed, tapered, and historical backfill schedules are intentionally out of scope; they should not be simulated with misleading daily entries.
-- The five-household, 30-day success-measure pilot remains a post-deployment activity. This build has not been clinically validated and must continue to be described as a coordination record, not medical advice or proof of administration.
+- The optional Sociobot household unlock still requires factory product registration; no payment credentials are in the repository.
+- Devices exchange records only through explicit encrypted handoff files, not cloud sync.
+- This is a household coordination record, not medical advice, prescription validation, or proof of administration.

@@ -369,8 +369,13 @@ function registerServiceWorker(): void {
   if (!('serviceWorker' in navigator)) return;
   const register = () => navigator.serviceWorker.register('/sw.js').then(registration => {
     registration.addEventListener('updatefound', () => {
-      if (!navigator.serviceWorker.controller) return;
-      toast('A refreshed Dose Witness is ready.', { label: 'Reload', run: () => location.reload() });
+      const installing = registration.installing;
+      if (!installing) return;
+      installing.addEventListener('statechange', () => {
+        if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+          toast('A refreshed Dose Witness is ready.', { label: 'Reload', run: () => location.reload() });
+        }
+      });
     });
   }).catch(() => toast('Offline setup could not finish. The board still works while this page is open.'));
   if (document.readyState === 'complete') void register();
@@ -383,7 +388,8 @@ async function start(): Promise<void> {
   try { state = await loadState(); }
   catch {
     state = { version: 1, householdName: 'Our care circle', patientName: '', caregiverInitials: '', medications: [], logs: [], audit: [], updatedAt: new Date().toISOString() };
-    root.innerHTML = shell(`${pageHead('Storage unavailable', 'This board could not open', 'Your browser blocked private device storage. Allow site storage or leave private browsing, then reload.')}<button class="button primary" onclick="location.reload()">Try again</button>`);
+    root.innerHTML = shell(`${pageHead('Storage unavailable', 'This board could not open', 'Your browser blocked private device storage. Allow site storage or leave private browsing, then reload.')}<button class="button primary" type="button" data-reload>Try again</button>`);
+    root.querySelector<HTMLButtonElement>('[data-reload]')?.addEventListener('click', () => location.reload());
     return;
   }
   render(); registerServiceWorker();
@@ -394,5 +400,14 @@ addEventListener('hashchange', () => { view = readView(); render(); });
 addEventListener('popstate', () => { view = readView(); render(); });
 addEventListener('online', () => { isOnline = true; render(); toast('Back online. Your local board stayed available.'); });
 addEventListener('offline', () => { isOnline = false; render(); });
+
+document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click', event => {
+  event.preventDefault();
+  const main = document.querySelector<HTMLElement>('#main-content');
+  if (!main) return;
+  history.replaceState(history.state, '', '#main-content');
+  main.focus({ preventScroll: true });
+  main.scrollIntoView({ block: 'start' });
+});
 
 void start();

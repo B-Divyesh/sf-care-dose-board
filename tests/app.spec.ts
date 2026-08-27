@@ -1,5 +1,68 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { readFile, readdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { releaseRevision } from '../scripts/release-content.mjs';
+
+async function releaseEntries(directory: string, prefix = ''): Promise<Array<[string, Buffer]>> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const output: Array<[string, Buffer]> = [];
+  for (const entry of entries) {
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (relative === 'sw.js' || relative === 'manifest.webmanifest') continue;
+    if (entry.isDirectory()) output.push(...await releaseEntries(resolve(directory, entry.name), relative));
+    else output.push([relative, await readFile(resolve(directory, entry.name))]);
+  }
+  return output;
+}
+
+test('skip link transfers keyboard focus to the dose board', async ({ page }) => {
+  await page.goto('/');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('link', { name: 'Skip to dose board' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#main-content')).toBeFocused();
+  await expect(page).toHaveURL(/#main-content$/);
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: /add medication/i }).first()).toBeFocused();
+});
+
+test('release worker derives a new cache namespace and removes an older release cache', async ({ page }) => {
+  await page.goto('/offline.html');
+  await page.evaluate(() => caches.open('dose-witness-shell-prior-release'));
+  await page.goto('/');
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+
+  const worker = await (await page.request.get('/sw.js')).text();
+  const cacheName = worker.match(/const CACHE = '([^']+)'/)?.[1];
+  expect(cacheName).toMatch(/^dose-witness-shell-[a-f0-9]{16}$/);
+  const manifest = await (await page.request.get('/manifest.webmanifest')).json() as { start_url: string };
+  expect(manifest.start_url).toBe(`/?source=pwa-${cacheName?.replace('dose-witness-shell-', '')}`);
+
+  const cachesAfterActivation = await page.evaluate(async () => caches.keys());
+  expect(cachesAfterActivation).toContain(cacheName);
+  expect(cachesAfterActivation).not.toContain('dose-witness-shell-prior-release');
+  const cachedShell = await page.evaluate(async activeCache => Boolean(await (await caches.open(activeCache)).match('/index.html')), cacheName!);
+  expect(cachedShell).toBe(true);
+
+  const expectedRevision = releaseRevision(await releaseEntries(resolve(process.cwd(), 'dist')));
+  expect(cacheName).toBe(`dose-witness-shell-${expectedRevision}`);
+});
+
+test('static deployment policy ships immutable hashed assets and browser hardening', async () => {
+  const config = JSON.parse(await readFile(resolve(process.cwd(), 'dist/staticwebapp.config.json'), 'utf8')) as {
+    globalHeaders: Record<string, string>;
+    mimeTypes: Record<string, string>;
+    routes: Array<{ route: string; headers: Record<string, string> }>;
+  };
+  expect(config.globalHeaders['Content-Security-Policy']).toContain("default-src 'self'");
+  expect(config.globalHeaders['Content-Security-Policy']).toContain("script-src 'self'");
+  expect(config.globalHeaders['Permissions-Policy']).toContain('camera=()');
+  expect(config.mimeTypes['.webmanifest']).toBe('application/manifest+json');
+  expect(config.routes.find(route => route.route === '/assets/*')?.headers['Cache-Control']).toBe('public, max-age=31536000, immutable');
+  expect(config.routes.find(route => route.route === '/sw.js')?.headers['Cache-Control']).toBe('no-cache, no-store, must-revalidate');
+});
 
 test('records a witnessed dose, persists it, and stays available offline', async ({ page, context }) => {
   const errors: string[] = [];
@@ -35,6 +98,7 @@ test('records a witnessed dose, persists it, and stays available offline', async
   expect(accessibility.violations.filter(item => ['serious', 'critical'].includes(item.impact ?? ''))).toEqual([]);
 
   await page.evaluate(() => navigator.serviceWorker.ready);
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   await page.evaluate(() => dispatchEvent(new Event('offline')));
   await expect(page.getByText(/Offline — this board still saves/)).toBeVisible();
   await context.setOffline(true);
