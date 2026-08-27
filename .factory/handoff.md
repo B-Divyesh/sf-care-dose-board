@@ -30,7 +30,7 @@ npm run test:e2e
 - Unit/policy tests: **8/8** passed.
 - Build and release-digest verification passed; JS 36.66 kB (11.92 kB gzip),
   CSS 14.18 kB (3.96 kB gzip).
-- Mobile Chromium: **4/4** passed, covering exact keyboard focus, encrypted
+- Mobile Chromium: **7/7** passed, covering exact keyboard focus, encrypted
   record persistence/offline reload, prior-worker update/cache cleanup/toast,
   and legal-page axe scans.
 - Local and live `verify-url.sh`: no console errors and title/lang/main/one
