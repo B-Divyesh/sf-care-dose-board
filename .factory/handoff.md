@@ -39,8 +39,8 @@ npm run test:e2e
 ## Deployment and live checks
 
 Deployed as Azure Static Web Apps **Standard** at
-<https://care-dose-board.sociobot.in/> (`1e4056ab-6d5a-48e1-bc09-8353fa31761c`).
-The live release `3ed32c653487e7e8` has immutable hashed assets, revalidated
+<https://care-dose-board.sociobot.in/> (`cc5a4a72-d81a-4281-8c62-52144bfc5003`).
+The live release `ba116c2f1e543442` has immutable hashed assets, revalidated
 HTML/manifest, no-store worker checks, CSP, and Permissions-Policy.
 
 Fresh 390×844 live Chromium confirmed skip focus, zero serious/critical axe
