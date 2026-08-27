@@ -1,4 +1,46 @@
-# Dose Witness — build handoff
+# Dose Witness — verification handoff
+
+## Independent verification status: **FAIL**
+
+Candidate `19cdafc7ff4c95ccbbccb93c8438e8122848a038` was independently tested
+on 2026-08-27 from a clean checkout and against
+`https://care-dose-board.sociobot.in/`. The live site is byte-for-byte the
+candidate's `dist/` output, but it does **not** meet acceptance yet.
+
+Release blocker: the visible keyboard skip link changes the fragment but leaves
+focus on `body`, instead of moving it to `#main-content`; it does not let a
+keyboard user bypass header navigation. See
+[`.factory/verification.md`](verification.md) for exact reproduction and the
+full evidence.
+
+Additional medium findings: the static host gives hashed JS/CSS only
+`max-age=30` rather than immutable caching, and the service worker uses a
+fixed `dose-witness-shell-v1` cache namespace rather than a release-derived
+name. Live responses also lack CSP and Permissions-Policy (low severity).
+
+Passing evidence: clean `npm ci`; `npm test` (5/5); exact `npm run build`;
+Playwright e2e (2/2 after installing Chromium); independent 1440px/390px
+flows, encryption/error recovery, no serious/critical axe findings, no console
+errors, and real live service-worker offline reload. Lighthouse mobile was 99
+Performance / 100 Accessibility / 100 Best Practices / 100 SEO. Product code
+was not modified during verification.
+
+## How to reproduce
+
+```sh
+npm ci
+npm test
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+For the full functional, privacy, policy, cache, deployment, and PWA evidence,
+read `.factory/verification.md`.
+
+---
+
+# Original builder handoff (superseded by verification result)
 
 Completed August 27, 2026 for work order `care-dose-board-build-1`.
 
