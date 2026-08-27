@@ -1,29 +1,22 @@
 # Dose Witness — QA repair handoff
 
 Completed 2026-08-27 for `care-dose-board-repair-1`, repairing report
-`74b817dea29a6a71436d5475601eb166195cedc3` against candidate
-`19cdafc7ff4c95ccbbccb93c8438e8122848a038`.
+`74b817dea29a6a71436d5475601eb166195cedc3`.
 
 ## Completed repair
 
-- Skip-link activation explicitly focuses `#main-content`, retains its fragment,
-  and scrolls it into view. The landmark remains programmatically focusable.
-- Vite stamps a SHA-256-derived 16-character release identity into the worker
-  cache namespace and the manifest start URL. The worker updates immediately,
-  claims clients, precaches the shell, removes only older Dose Witness caches,
-  keeps navigation network-first, and retains the offline fallback.
-- `staticwebapp.config.json` configures Standard Static Web Apps with immutable
-  one-year caching for hashed `/assets/*`, revalidation for app HTML/manifest,
-  and no-store worker checks. It also supplies CSP, Permissions-Policy, HSTS-
-  compatible referrer protection, nosniff, SPA fallback, and webmanifest MIME.
-- Removed inline executable/style paths from the app and offline page so CSP
-  remains strict (`script-src 'self'; style-src 'self'`), while preserving the
-  offline page and care-record UI.
-- IndexedDB local records and AES-256-GCM encrypted export/import are unchanged.
-  Unit coverage still verifies encrypted round trip and wrong/short passphrase
-  recovery.
+- Skip-link activation explicitly focuses `#main-content` and scrolls it into view.
+- The built worker cache and manifest start URL use a SHA-256 release identity;
+  the worker updates immediately, claims clients, deletes older Dose Witness
+  caches only, precaches its shell, and preserves network-first navigation plus
+  offline fallback.
+- Standard Static Web Apps policy sets immutable caching only for hashed assets,
+  revalidates HTML/manifest, no-stores `sw.js`, and emits CSP,
+  Permissions-Policy, referrer and nosniff protections.
+- Inline executable/style paths were removed so CSP remains strict. IndexedDB
+  care records and AES-256-GCM encrypted export/import were preserved.
 
-## Regression coverage and verification
+## Verification
 
 ```sh
 npm ci
@@ -34,35 +27,29 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-- `npm test`: **8/8** unit/policy tests passed.
-- `npm run build` and `npm run verify:release` passed. Initial JS is 36.66 kB
-  (11.92 kB gzip) and CSS 14.18 kB (3.96 kB gzip), within budget.
-- `npm run test:e2e`: **4/4** mobile Chromium tests passed: exact keyboard
-  focus, encrypted/persisted care record plus offline reload, simulated old
-  worker upgrade/stale-cache deletion/update toast, and legal-page axe scans.
-- Local `verify-url.sh` passed with no console errors and title/lang/main/one
-  h1/alt/button-label checks.
+- Unit/policy tests: **8/8** passed.
+- Build and release-digest verification passed; JS 36.66 kB (11.92 kB gzip),
+  CSS 14.18 kB (3.96 kB gzip).
+- Mobile Chromium: **4/4** passed, covering exact keyboard focus, encrypted
+  record persistence/offline reload, prior-worker update/cache cleanup/toast,
+  and legal-page axe scans.
+- Local and live `verify-url.sh`: no console errors and title/lang/main/one
+  h1/alt/button-label checks passed.
 
-## Deployment and live evidence
+## Deployment and live checks
 
-Deployed as an Azure Static Web Apps **Standard** static site to
-<https://care-dose-board.sociobot.in/> using deployment
-`1e4056ab-6d5a-48e1-bc09-8353fa31761c`.
+Deployed as Azure Static Web Apps **Standard** at
+<https://care-dose-board.sociobot.in/> (`1e4056ab-6d5a-48e1-bc09-8353fa31761c`).
+The live release `3ed32c653487e7e8` has immutable hashed assets, revalidated
+HTML/manifest, no-store worker checks, CSP, and Permissions-Policy.
 
-- Live worker and manifest both expose release `3ed32c653487e7e8`.
-- Live hashed JS/CSS return `public, max-age=31536000, immutable`; root/legal
-  HTML revalidates; `sw.js` returns `no-cache, no-store, must-revalidate`.
-  CSP and Permissions-Policy are present on all checked responses.
-- Live `verify-url.sh`: HTTPS 200 in 777 ms, no console errors, and all
-  baseline semantic checks passed.
-- Fresh 390×844 live Chromium: skip focus landed on `main-content`, axe found
-  **0 serious/critical** issues, worker activation and offline reload succeeded,
-  and no console errors occurred.
-- Lighthouse 12.6 mobile: **100 Performance, 100 Accessibility, 100 Best
-  Practices, 100 SEO**; FCP 1.0 s, LCP 1.2 s, CLS 0, TBT 20 ms.
+Fresh 390×844 live Chromium confirmed skip focus, zero serious/critical axe
+findings, service-worker activation and offline reload, with no console errors.
+Lighthouse 12.6 mobile: **100 Performance, 100 Accessibility, 100 Best
+Practices, 100 SEO**; FCP 1.0 s, LCP 1.2 s, CLS 0, TBT 20 ms.
 
-## Product boundaries
+## Boundaries
 
-Care records stay in local IndexedDB. Device sharing is explicit encrypted-file
-handoff; there is no cloud sync. Dose Witness is a household coordination
-record, not medical advice, prescription validation, or proof of administration.
+Care records remain local IndexedDB data; device sharing is encrypted-file
+handoff rather than cloud sync. Dose Witness is a coordination record, not
+medical advice or proof of administration.
