@@ -1,55 +1,23 @@
-# Dose Witness — QA repair handoff
+# Dose Witness — verification handoff
 
-Completed 2026-08-27 for `care-dose-board-repair-1`, repairing report
-`74b817dea29a6a71436d5475601eb166195cedc3`.
+## FAIL — candidate is not the production deployment
 
-## Completed repair
+Verified 2026-08-27 for candidate
+`97e8cb495124b06d88c8bb8125a9c4306a8fbf7a` at
+<https://care-dose-board.sociobot.in/>.
 
-- Skip-link activation explicitly focuses `#main-content` and scrolls it into view.
-- The built worker cache and manifest start URL use a SHA-256 release identity;
-  the worker updates immediately, claims clients, deletes older Dose Witness
-  caches only, precaches its shell, and preserves network-first navigation plus
-  offline fallback.
-- Standard Static Web Apps policy sets immutable caching only for hashed assets,
-  revalidates HTML/manifest, no-stores `sw.js`, and emits CSP,
-  Permissions-Policy, referrer and nosniff protections.
-- Inline executable/style paths were removed so CSP remains strict. IndexedDB
-  care records and AES-256-GCM encrypted export/import were preserved.
+The candidate passes clean local install, unit tests (5/5), TypeScript-backed
+production build, browser tests (5/5), manual core/edge/recovery flows,
+offline reload, axe serious/critical scans, privacy request capture, and
+desktop/390px checks. Its build is within the JS/CSS/image budgets.
 
-## Verification
+However, the live URL serves a different later release: candidate worker cache
+`dose-witness-shell-1e83ddcb22927db9` versus live
+`dose-witness-shell-ba116c2f1e543442`, with different hashed JS/CSS and
+manifest start URL. This is a High release-blocking deployment identity defect.
+The live site itself passed fresh browser, policy, and header smoke checks, but
+those observations do not validate this candidate.
 
-```sh
-npm ci
-npm test
-npm run build
-npm run verify:release
-npx playwright install chromium
-npm run test:e2e
-```
-
-- Unit/policy tests: **8/8** passed.
-- Build and release-digest verification passed; JS 36.66 kB (11.92 kB gzip),
-  CSS 14.18 kB (3.96 kB gzip).
-- Mobile Chromium: **7/7** passed, covering exact keyboard focus, encrypted
-  record persistence/offline reload, prior-worker update/cache cleanup/toast,
-  and legal-page axe scans.
-- Local and live `verify-url.sh`: no console errors and title/lang/main/one
-  h1/alt/button-label checks passed.
-
-## Deployment and live checks
-
-Deployed as Azure Static Web Apps **Standard** at
-<https://care-dose-board.sociobot.in/> (`cc5a4a72-d81a-4281-8c62-52144bfc5003`).
-The live release `ba116c2f1e543442` has immutable hashed assets, revalidated
-HTML/manifest, no-store worker checks, CSP, and Permissions-Policy.
-
-Fresh 390×844 live Chromium confirmed skip focus, zero serious/critical axe
-findings, service-worker activation and offline reload, with no console errors.
-Lighthouse 12.6 mobile: **100 Performance, 100 Accessibility, 100 Best
-Practices, 100 SEO**; FCP 1.0 s, LCP 1.2 s, CLS 0, TBT 20 ms.
-
-## Boundaries
-
-Care records remain local IndexedDB data; device sharing is encrypted-file
-handoff rather than cloud sync. Dose Witness is a coordination record, not
-medical advice or proof of administration.
+See `.factory/verification-2.md` for commands, exact evidence, test scope,
+and the required remediation: deploy the candidate's exact `dist/` and rerun
+the live identity/offline/header verification.
