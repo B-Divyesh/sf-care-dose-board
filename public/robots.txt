@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://care-dose-board.sociobot.in/sitemap.xml
