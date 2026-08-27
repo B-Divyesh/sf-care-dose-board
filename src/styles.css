@@ -31,6 +31,9 @@ img { max-width: 100%; }
 
 .skip-link { position: fixed; z-index: 1000; top: 8px; left: 8px; padding: 12px 16px; background: var(--paper); color: var(--paper-ink); transform: translateY(-160%); }
 .skip-link:focus { transform: translateY(0); }
+.section-gap { margin-top: 24px; }
+.form-gap { margin-top: 20px; }
+.inline-checkbox { width: auto; min-height: 24px; }
 :focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
 
 .app-header { position: sticky; z-index: 20; top: 0; border-bottom: 1px solid var(--line); background: rgb(7 19 25 / 96%); backdrop-filter: blur(12px); }

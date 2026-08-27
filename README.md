@@ -34,11 +34,12 @@ Open the local URL printed by Vite. Browser data is stored only for that origin.
 ```sh
 npm test
 npm run build
+npm run verify:release
 ```
 
 The production command is exactly `npm run build`. It writes the static deployment to `dist/`, with `dist/index.html` at its root.
 
-The browser suite covers a complete mobile medication/status/handoff path, an offline reload with preserved IndexedDB data, legal routes, console errors, and serious/critical axe findings:
+The browser suite covers a complete mobile medication/status/handoff path, keyboard skip-focus behavior, a prior-worker release update with stale-cache cleanup, an offline reload with preserved IndexedDB data, legal routes, console errors, and serious/critical axe findings:
 
 ```sh
 npx playwright install chromium   # first run only
@@ -59,7 +60,7 @@ The app cannot recover an export passphrase. Keep an appropriate printed or encr
 
 ## Deployment
 
-Deploy the contents of `dist/` as a Standard static site. The generated `staticwebapp.config.json` supplies the SPA fallback, a strict Content-Security-Policy and Permissions-Policy, `no-cache` for `sw.js`, and one-year immutable caching for Vite’s hashed `/assets/*` files. Each production build derives its service-worker cache namespace and manifest start query from the release contents, so a new worker can safely replace a prior shell.
+Deploy the contents of `dist/` as a static site with SPA fallback to `index.html`. `staticwebapp.config.json` ships the required CSP, Permissions-Policy, revalidation for HTML/worker/manifest, and long-lived immutable caching only for hashed `assets/` files. The build derives the service-worker cache namespace and installed-app version query from the complete release content; `npm run verify:release` independently recomputes and checks that stamp.
 
 Checkout and license verification use only the Sociobot billing API. The product slug is derived from this repository and no payment-provider credentials or product IDs are embedded.
 

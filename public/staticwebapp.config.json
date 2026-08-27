@@ -1,32 +1,21 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/assets/*", "/art/*", "/icons/*", "/manifest.webmanifest", "/sw.js", "/offline.html", "/robots.txt", "/sitemap.xml"]
+    "exclude": ["/assets/*", "/*.{css,js,png,jpg,svg,webp,avif,ico,woff2,json,txt,xml,wasm}"]
   },
-  "mimeTypes": {
-    ".webmanifest": "application/manifest+json"
-  },
+  "mimeTypes": { ".webmanifest": "application/manifest+json" },
   "globalHeaders": {
-    "Cache-Control": "public, max-age=0, must-revalidate",
-    "Content-Security-Policy": "default-src 'self'; base-uri 'self'; connect-src 'self' https://api.sociobot.in; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; manifest-src 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self'; upgrade-insecure-requests",
-    "Permissions-Policy": "accelerometer=(), autoplay=(), camera=(), clipboard-read=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()",
+    "Content-Security-Policy": "default-src 'self'; base-uri 'self'; connect-src 'self' https://api.sociobot.in; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; manifest-src 'self'; media-src 'self'; object-src 'none'; script-src 'self'; style-src 'self'; worker-src 'self'; upgrade-insecure-requests",
+    "Permissions-Policy": "accelerometer=(), autoplay=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "X-Content-Type-Options": "nosniff"
   },
   "routes": [
-    {
-      "route": "/assets/*",
-      "headers": { "Cache-Control": "public, max-age=31536000, immutable" }
-    },
-    {
-      "route": "/sw.js",
-      "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" }
-    },
-    {
-      "route": "/manifest.webmanifest",
-      "headers": {
-        "Cache-Control": "no-cache, must-revalidate"
-      }
-    }
+    { "route": "/assets/*", "headers": { "Cache-Control": "public, max-age=31536000, immutable" } },
+    { "route": "/sw.js", "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" } },
+    { "route": "/manifest.webmanifest", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
+    { "route": "/", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
+    { "route": "/privacy", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
+    { "route": "/terms", "headers": { "Cache-Control": "no-cache, must-revalidate" } }
   ]
 }

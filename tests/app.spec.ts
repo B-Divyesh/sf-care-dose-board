@@ -64,6 +64,15 @@ test('static deployment policy ships immutable hashed assets and browser hardeni
   expect(config.routes.find(route => route.route === '/sw.js')?.headers['Cache-Control']).toBe('no-cache, no-store, must-revalidate');
 });
 
+test('keyboard skip link moves focus into the dose board', async ({ page }) => {
+  await page.goto('/');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('link', { name: 'Skip to dose board' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#main-content')).toBeFocused();
+  await expect(page).toHaveURL(/#main-content$/);
+});
+
 test('records a witnessed dose, persists it, and stays available offline', async ({ page, context }) => {
   const errors: string[] = [];
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
@@ -106,6 +115,30 @@ test('records a witnessed dose, persists it, and stays available offline', async
   await expect(page.getByRole('heading', { level: 1, name: 'Handoff' })).toBeVisible();
   await expect(page.getByText(/Packet was open/)).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('replaces a previous worker cache when a release update is found', async ({ page, context }) => {
+  const oldWorker = `const CACHE = 'dose-witness-shell-regression-old';
+    self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.put('/old', new Response('old')))));
+    self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+    self.addEventListener('fetch', () => {});
+    self.skipWaiting();`;
+  await page.goto('/');
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  await context.route('**/old-sw.js', route => route.fulfill({
+    contentType: 'application/javascript',
+    body: oldWorker,
+  }));
+  await page.evaluate(() => navigator.serviceWorker.register('/old-sw.js', { scope: '/' }));
+  await expect.poll(() => page.evaluate(() => caches.keys())).toContain('dose-witness-shell-regression-old');
+
+  await context.unroute('**/old-sw.js');
+  await page.evaluate(() => navigator.serviceWorker.register('/sw.js', { scope: '/' }));
+  await page.waitForFunction(async () => {
+    const keys = await caches.keys();
+    return !keys.includes('dose-witness-shell-regression-old') && keys.some(key => /^dose-witness-shell-[a-f0-9]{16}$/.test(key));
+  });
+  await expect(page.locator('.toast').first()).toContainText('A refreshed Dose Witness is ready.');
 });
 
 test('legal pages have landmarks and a single page heading', async ({ page }) => {
