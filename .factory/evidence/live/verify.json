@@ -1,0 +1,14 @@
+{
+  "url": "https://care-dose-board.sociobot.in/",
+  "loadMs": 951,
+  "errors": [],
+  "a11y": {
+    "title": "Dose Witness — record household medication doses",
+    "lang": "en",
+    "h1": 1,
+    "main": true,
+    "imgsMissingAlt": 0,
+    "buttonsUnlabeled": 0,
+    "textLength": 1776
+  }
+}
