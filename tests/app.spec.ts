@@ -57,6 +57,8 @@ test('built deployment policy includes browser hardening', async () => {
   expect(config.globalHeaders['Content-Security-Policy']).toContain("default-src 'self'");
   expect(config.globalHeaders['Permissions-Policy']).toContain('camera=()');
   expect(config.responseOverrides['404'].statusCode).toBe(404);
+  expect(config.navigationFallback).toBeUndefined();
+  expect(config.routes.find((route: { route: string }) => route.route === '/demo').rewrite).toBe('/index.html');
 });
 
 test('cold loads have no console errors or failed same-origin responses', async ({ page }) => {

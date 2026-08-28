@@ -10,6 +10,9 @@ describe('static release policy', () => {
     const immutable = config.routes.find((route: { route: string }) => route.route === '/assets/*');
     expect(immutable.headers['Cache-Control']).toBe('public, max-age=31536000, immutable');
     expect(config.routes.find((route: { route: string }) => route.route === '/sw.js').headers['Cache-Control']).toContain('no-cache');
+    expect(config.routes.find((route: { route: string }) => route.route === '/demo').rewrite).toBe('/index.html');
+    expect(config.navigationFallback).toBeUndefined();
+    expect(config.responseOverrides['404']).toEqual({ rewrite: '/404.html', statusCode: 404 });
   });
 
   it('locks down browser capabilities while allowing the optional license verification', async () => {

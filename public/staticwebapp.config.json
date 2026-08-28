@@ -1,8 +1,4 @@
 {
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": ["/assets/*", "/*.{css,js,png,jpg,svg,webp,avif,ico,woff2,json,txt,xml,wasm}"]
-  },
   "responseOverrides": {
     "404": { "rewrite": "/404.html", "statusCode": 404 }
   },
@@ -18,11 +14,11 @@
     { "route": "/sw.js", "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" } },
     { "route": "/manifest.webmanifest", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
     { "route": "/", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
-    { "route": "/demo", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
-    { "route": "/medications", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
-    { "route": "/handoff", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
-    { "route": "/settings", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
-    { "route": "/privacy", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
-    { "route": "/terms", "headers": { "Cache-Control": "no-cache, must-revalidate" } }
+    { "route": "/demo", "rewrite": "/index.html", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
+    { "route": "/medications", "rewrite": "/index.html", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
+    { "route": "/handoff", "rewrite": "/index.html", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
+    { "route": "/settings", "rewrite": "/index.html", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
+    { "route": "/privacy", "rewrite": "/index.html", "headers": { "Cache-Control": "no-cache, must-revalidate" } },
+    { "route": "/terms", "rewrite": "/index.html", "headers": { "Cache-Control": "no-cache, must-revalidate" } }
   ]
 }

@@ -68,7 +68,7 @@ See [`.factory/demo.md`](.factory/demo.md) for sample details and verification s
 
 ## Deployment
 
-Deploy `dist/` as a static site and route known app URLs to `index.html`. `staticwebapp.config.json` defines the security headers. It prevents stale app files while caching versioned assets.
+Deploy `dist/` as a static site. The host routes known app URLs to `index.html` and unknown URLs to `404.html`. `staticwebapp.config.json` defines the security headers. It prevents stale app files while caching versioned assets.
 
 The build creates a release id from the complete output. `npm run verify:release` recomputes and checks that id.
 
