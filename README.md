@@ -1,33 +1,37 @@
 # Dose Witness
 
-Dose Witness is a private, local-first medication handoff board for families caring for an older relative. It records whether each scheduled dose was **given**, **skipped**, or **uncertain**, who witnessed that status, and what the next caregiver needs to know.
+Dose Witness keeps a medication record on one device for families caring for an older relative. It records whether each scheduled dose was given, skipped, or uncertain. It also records caregiver initials and notes for the next caregiver.
 
-It is a coordination utility, not a medical device. It does not provide dosage advice, interaction checking, prescription changes, or pharmacy services.
+It keeps a household record. It is not a medical device. It does not provide dosage advice, interaction checks, prescription changes, or pharmacy services.
 
 Live product: <https://care-dose-board.sociobot.in>
 
-## What it includes
+Try the isolated sample: <https://care-dose-board.sociobot.in/demo>
 
-- Daily medication cards generated from an existing household care plan
-- Explicit status recording with caregiver initials and optional handoff notes
-- Visible correction history, past-due context, and a printable shift handoff
-- IndexedDB persistence with no account, analytics, or cloud storage
-- AES-256-GCM encrypted export/import with timestamp-based merging between devices
-- Installable PWA shell that reloads and continues recording offline
-- A useful free board for three active medications; a $19 one-time household license unlocks unlimited active medications
-- Keyboard, screen-reader, reduced-motion, 390px mobile, and print treatments
-- Plain-language `/privacy` and `/terms` pages
+## Dose Witness features
+
+- Enter daily medication cards from the household’s current care plan.
+- Record a status, caregiver initials, and an optional note.
+- See corrections and overdue doses, then print a caregiver summary.
+- Store records in this browser without an account, analytics, or cloud storage.
+- Encrypt handoff files and keep the latest record when devices are merged.
+- Install the app and continue recording after the connection drops.
+- Use three active medications for free. A $19 one-time household license removes that limit.
+- Use the app by keyboard or screen reader, with reduced motion and browser zoom.
+- Read the privacy policy at `/privacy` and terms at `/terms`.
+
+Every product promise is listed in [`.factory/claims.json`](.factory/claims.json) with one browser test.
 
 ## Run locally
 
-Requirements: Node.js 20 or newer and npm.
+Use Node.js 20 or newer and npm.
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. Browser data is stored only for that origin.
+Open the local address printed by Vite. The browser keeps app data under that address.
 
 ## Test and build
 
@@ -35,38 +39,44 @@ Open the local URL printed by Vite. Browser data is stored only for that origin.
 npm test
 npm run build
 npm run verify:release
-```
-
-The production command is exactly `npm run build`. It writes the static deployment to `dist/`, with `dist/index.html` at its root.
-
-The browser suite covers a complete mobile medication/status/handoff path, keyboard skip-focus behavior, a prior-worker release update with stale-cache cleanup, an offline reload with preserved IndexedDB data, legal routes, console errors, and serious/critical axe findings:
-
-```sh
-npx playwright install chromium   # first run only
 npm run test:e2e
 ```
 
-Preview the built app with:
+Run one documented claim with its command from `.factory/claims.json`. For example:
 
 ```sh
-npm run preview
+npm run test:claims -- --grep @claim:offline-reload
 ```
+
+The build writes the static site to `dist/`, including `dist/index.html`. Preview it with `npm run preview`.
+
+The browser tests cover adding a medication and recording a status. They cover keyboard focus, offline reloads, worker updates, and route metadata. They also check legal pages, console errors, and serious or critical accessibility findings.
 
 ## Data ownership and device handoff
 
-All care-plan and dose data is saved in IndexedDB. There is intentionally no background cloud synchronization. Use **Handoff → Download encrypted copy**, share that file, communicate the passphrase separately, and import it on another device. Import keeps records unique to both devices and uses the newest timestamp when the same record was changed on both.
+The browser saves all care plan and dose data on this device. The app does not sync care data in the background.
 
-The app cannot recover an export passphrase. Keep an appropriate printed or encrypted backup; clearing browser site data removes the local board.
+Download an encrypted handoff file, send the passphrase separately, then import the file on the other device. Import keeps records unique to both devices. It uses the newest timestamp when the same record changed on both.
+
+The app cannot recover an export passphrase. Keep a printed or encrypted backup. Clearing browser site data removes the local board.
+
+## Demo sandbox
+
+`/demo` and `/?demo=1` open realistic sample data in the `demo:dose-witness` session namespace. Demo actions never read or write the real `dose-witness` database. Reset restores the sample. Start for real discards the demo and opens the real board.
+
+See [`.factory/demo.md`](.factory/demo.md) for sample details and verification steps.
 
 ## Deployment
 
-Deploy the contents of `dist/` as a static site with SPA fallback to `index.html`. `staticwebapp.config.json` ships the required CSP, Permissions-Policy, revalidation for HTML/worker/manifest, and long-lived immutable caching only for hashed `assets/` files. The build derives the service-worker cache namespace and installed-app version query from the complete release content; `npm run verify:release` independently recomputes and checks that stamp.
+Deploy `dist/` as a static site and route known app URLs to `index.html`. `staticwebapp.config.json` defines the security headers. It prevents stale app files while caching versioned assets.
 
-Checkout and license verification use only the Sociobot billing API. The product slug is derived from this repository and no payment-provider credentials or product IDs are embedded.
+The build creates a release id from the complete output. `npm run verify:release` recomputes and checks that id.
 
-## Design and provenance
+Checkout and license verification use only the Sociobot billing API. The product slug comes from this repository. No payment-provider credentials or product IDs are embedded.
 
-The product-specific night-market visual system and generated-asset provenance are documented in [.factory/design.md](.factory/design.md). The original source artwork and prompt sidecar live in `assets/src/`.
+## Artwork and design sources
+
+The colors, type, artwork source, and image-generation notes are in [`.factory/design.md`](.factory/design.md). The source artwork and its generation prompt are in `assets/src/`.
 
 ## License
 

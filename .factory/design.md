@@ -53,6 +53,8 @@ UI transitions last 180–240ms and use only opacity and transform. Dose state c
 ## Asset plan and provenance
 
 - `public/art/dose-watch.avif`, `.webp`, and `.jpg`: original generated editorial hero with modern formats plus fallback, used on the first-run state only; explicit 960×640 dimensions. AVIF is 26 KB, WebP 33 KB, and fallback JPEG 65 KB—each well under the 300 KB hero budget.
+- `public/art/og-dose-watch.jpg`: 1200×630 social crop composed from the same original night-watch artwork; no new subject matter or text was added.
+- `public/icons/apple-touch-icon.png`: 180×180 export of the hand-authored Dose Witness app icon.
 - App icons and interface marks: original hand-authored SVG/CSS geometry, not icon-library assets.
 
 ### Prompt sheet

@@ -1,16 +1,22 @@
 import './styles.css';
 import { decryptState, encryptState } from './crypto';
-import { loadState, mergeStates, saveState, scheduleForDate } from './data';
+import { loadState, mergeStates, normalizeState, saveState, scheduleForDate } from './data';
 import { cachedLicenseIsValid, captureLicenseFromUrl, checkoutUrl, removeLicense, saveLicense, verifyLicense } from './license';
 import type { DoseLog, DoseStatus, HouseholdState, Medication, ScheduledDose } from './types';
 
-type View = 'today' | 'medications' | 'handoff' | 'settings';
+type View = 'today' | 'medications' | 'handoff' | 'settings' | 'privacy' | 'terms' | 'not-found';
+
+declare const __BUILD_ID__: string;
+
+const DEMO_KEY = 'demo:dose-witness';
+const APP_ORIGIN = 'https://care-dose-board.sociobot.in';
 
 const rootElement = document.querySelector<HTMLDivElement>('#app');
 if (!rootElement) throw new Error('Application root is missing.');
 const root: HTMLDivElement = rootElement;
 
 let state: HouseholdState;
+let demoMode = location.pathname === '/demo' || new URLSearchParams(location.search).get('demo') === '1';
 let view: View = readView();
 let isOnline = navigator.onLine;
 let isUnlocked = cachedLicenseIsValid();
@@ -33,8 +39,55 @@ function uid(prefix: string): string {
 }
 
 function readView(): View {
-  const hash = location.hash.slice(1);
-  return ['today', 'medications', 'handoff', 'settings'].includes(hash) ? hash as View : 'today';
+  const routes: Record<string, View> = {
+    '/': 'today', '/demo': 'today', '/medications': 'medications', '/handoff': 'handoff',
+    '/settings': 'settings', '/privacy': 'privacy', '/terms': 'terms',
+  };
+  return routes[location.pathname] ?? 'not-found';
+}
+
+function withDemo(path: string): string {
+  if (!demoMode) return path;
+  if (path === '/') return '/demo';
+  const url = new URL(path, location.origin);
+  url.searchParams.set('demo', '1');
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function pathFor(next: View): string {
+  if (next === 'today') return demoMode ? '/demo' : '/';
+  return withDemo(`/${next}`);
+}
+
+function sampleState(): HouseholdState {
+  const now = new Date();
+  const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const times = ['07:30', '13:00', now.getHours() >= 20 ? '23:55' : '20:30'];
+  const stamp = (time: string, minuteOffset = 0) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes + minuteOffset).toISOString();
+  };
+  const medications: Medication[] = [
+    { id: 'demo-blood-pressure', name: 'Blood pressure tablet', strength: '5 mg', instructions: 'With breakfast', times: [times[0]], active: true, createdAt: stamp(times[0], -60), updatedAt: stamp(times[0], -60) },
+    { id: 'demo-calcium', name: 'Calcium tablet', strength: '500 mg', instructions: 'After lunch', times: [times[1]], active: true, createdAt: stamp(times[0], -60), updatedAt: stamp(times[0], -60) },
+    { id: 'demo-evening', name: 'Evening tablet', strength: '10 mg', instructions: 'Use the current care plan', times: [times[2]], active: true, createdAt: stamp(times[0], -60), updatedAt: stamp(times[0], -60) },
+  ];
+  const givenKey = `${medications[0].id}:${dateKey}:${times[0]}`;
+  const uncertainKey = `${medications[1].id}:${dateKey}:${times[1]}`;
+  const logs: DoseLog[] = [
+    { id: 'demo-log-given', scheduleKey: givenKey, medicationId: medications[0].id, dueAt: stamp(times[0]), status: 'given', witness: 'AK', note: 'Taken with breakfast.', recordedAt: stamp(times[0], 5), updatedAt: stamp(times[0], 5) },
+    { id: 'demo-log-uncertain', scheduleKey: uncertainKey, medicationId: medications[1].id, dueAt: stamp(times[1]), status: 'uncertain', witness: 'RJ', note: 'Packet was open; please confirm before the next scheduled dose.', recordedAt: stamp(times[1], 8), updatedAt: stamp(times[1], 8) },
+  ];
+  return {
+    version: 1, householdName: 'Meera’s care circle', patientName: 'Meera', caregiverInitials: 'AK',
+    medications, logs, updatedAt: now.toISOString(),
+    audit: logs.map((log, index) => ({ id: `demo-event-${index + 1}`, scheduleKey: log.scheduleKey, medicationId: log.medicationId, status: log.status, witness: log.witness, note: log.note, recordedAt: log.recordedAt })),
+  };
+}
+
+function normalizeDemoState(): HouseholdState {
+  try { return normalizeState(JSON.parse(sessionStorage.getItem(DEMO_KEY) ?? '')); }
+  catch { return sampleState(); }
 }
 
 function formatTime(date: Date): string {
@@ -54,29 +107,44 @@ function statusLabel(status: DoseStatus): string {
 }
 
 function shell(content: string): string {
+  const navViews: Array<Exclude<View, 'privacy' | 'terms' | 'not-found'>> = ['today', 'medications', 'handoff', 'settings'];
   const nav = (placement: string) => `<nav class="${placement}" aria-label="Primary">
-    ${(['today', 'medications', 'handoff', 'settings'] as View[]).map(item => `<a class="nav-link" href="#${item}" data-view="${item}" ${view === item ? 'aria-current="page"' : ''}>${icons[item]} ${item === 'settings' ? 'More' : item}</a>`).join('')}
+    ${navViews.map(item => `<a class="nav-link" href="${pathFor(item)}" data-view="${item}" ${view === item ? 'aria-current="page"' : ''}>${icons[item]} ${item}</a>`).join('')}
   </nav>`;
   return `<header class="app-header">
       <div class="header-inner">
-        <a class="brand" href="#today" data-view="today" aria-label="Dose Witness, today">
+        <a class="brand" href="${pathFor('today')}" data-view="today" aria-label="Dose Witness, today">
           <img src="/icons/icon.svg" alt="" width="42" height="42" />
           <span><span class="brand-name">Dose Witness</span><span class="brand-sub">One dose. One visible record.</span></span>
         </a>
         ${nav('desktop-nav')}
       </div>
     </header>
+    ${demoMode ? `<aside class="demo-banner" aria-label="Demo controls"><strong>Demo — sample data, nothing is saved</strong><span>Changes stay in this tab and never touch your real board.</span><div class="demo-actions"><button class="text-button" type="button" data-reset-demo>Reset demo</button><button class="text-button" type="button" data-start-real>Start for real</button></div></aside>` : ''}
     <main id="main-content" tabindex="-1">${!isOnline ? '<div class="notice offline" role="status"><span aria-hidden="true">●</span> Offline — this board still saves on this device.</div>' : ''}${content}</main>
     <footer class="app-footer"><div class="footer-inner">
-      <p><strong>Not a medical device.</strong> Dose Witness records household handoffs; it does not give medical advice or replace a clinician’s instructions. Generated scene disclosed in the <a href="#about-art" data-view="settings">About section</a>.</p>
-      <nav class="footer-links" aria-label="Legal"><a href="/privacy" data-route="privacy">Privacy</a><a href="/terms" data-route="terms">Terms</a></nav>
+      <p><strong>Not a medical device.</strong> Dose Witness records household care; it does not give medical advice or replace a clinician’s instructions. <a href="${withDemo('/settings#about-art')}" data-route-link>Read artwork details</a>.</p>
+      <nav class="footer-links" aria-label="Legal"><a href="${withDemo('/privacy')}" data-route-link>Privacy</a><a href="${withDemo('/terms')}" data-route-link>Terms</a><span>Built by Param Factory</span><span>Build ${h(__BUILD_ID__)}</span></nav>
     </div></footer>
     ${nav('mobile-nav')}
+    <div id="route-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
     <div class="toast-region" aria-live="polite" aria-atomic="true"></div>`;
 }
 
 function pageHead(eyebrow: string, title: string, lede: string, action = ''): string {
   return `<div class="page-head"><div class="page-head-copy"><p class="eyebrow">${h(eyebrow)}</p><h1>${h(title)}</h1><p class="lede">${h(lede)}</p></div>${action}</div>`;
+}
+
+function renderLanding(): string {
+  return `${pageHead('Household medication record', 'Track each dose for an older relative', 'For families sharing care, record whether each scheduled medication was given, skipped, or uncertain.')}
+    <section class="first-action" aria-label="Get started"><div class="button-row"><a class="button primary" href="/demo" data-route-link>Try it with sample data</a><button class="button" type="button" data-add-med>Set up my board</button></div><p>See a filled dose board; nothing is saved.</p></section>
+    <section class="hero-empty" aria-labelledby="setup-title"><div class="hero-copy"><p class="eyebrow">One visible record</p><h2 id="setup-title">Show the next caregiver what happened</h2><p>Add the medications and times from the current care plan. Record each dose with a status and caregiver initials.</p></div>
+      <picture class="hero-picture"><source srcset="/art/dose-watch.avif" type="image/avif"/><source srcset="/art/dose-watch.webp" type="image/webp"/><img class="hero-art" src="/art/dose-watch.jpg" width="960" height="640" alt="Illustration of three caregivers linking their status marks to one dose record" decoding="async" fetchpriority="high" /></picture></section>
+    <ul class="promise-row" aria-label="Product facts"><li><strong>Data stays on this device</strong>No account or cloud care record.</li><li><strong>Works offline</strong>Record a dose without a signal.</li><li><strong>Three dose statuses</strong>Given, skipped, or uncertain.</li></ul>
+    <section class="landing-section" aria-labelledby="preview-title"><p class="eyebrow">Live preview</p><h2 id="preview-title">See a filled dose board</h2><div class="preview-board"><div class="preview-dose given"><strong>7:30 AM · Blood pressure tablet</strong><span>✓ Given by AK</span></div><div class="preview-dose uncertain"><strong>1:00 PM · Calcium tablet</strong><span>? Uncertain · note for next caregiver</span></div><div class="preview-dose"><strong>8:30 PM · Evening tablet</strong><span>Awaiting a record</span></div></div><a class="text-link" href="/demo" data-route-link>Open this sample board</a></section>
+    <section class="landing-section" aria-labelledby="how-title"><p class="eyebrow">How it works</p><h2 id="how-title">Keep one household record</h2><ol class="steps"><li><strong>Add the care plan</strong><span>Copy medication names and times from current instructions.</span></li><li><strong>Record each dose</strong><span>Choose given, skipped, or uncertain and add initials.</span></li><li><strong>Brief the next caregiver</strong><span>Print a summary or send an encrypted handoff file.</span></li></ol></section>
+    <section class="landing-section limits-grid" aria-labelledby="limits-title"><div><p class="eyebrow">Safety boundary</p><h2 id="limits-title">Records care. Never gives medical advice.</h2><p>Dose Witness does not check interactions, change prescriptions, recommend dosages, or contact a pharmacy.</p><a class="text-link" href="/terms" data-route-link>Read the terms</a></div><div><p class="eyebrow">Storage</p><h2>Care data stays in this browser</h2><p>The app has no accounts, analytics, ads, or background cloud sync. You control exports.</p><a class="text-link" href="/privacy" data-route-link>Read the privacy policy</a></div></section>
+    <section class="landing-section paid-strip" aria-labelledby="price-title"><div><p class="eyebrow">Household license</p><h2 id="price-title">Start free. Remove the medication limit for $19.</h2><p>The free board allows three active medications. A $19 one-time household license allows unlimited active medications.</p></div><a class="button" href="/settings" data-route-link>View license details</a></section>`;
 }
 
 function renderToday(): string {
@@ -86,20 +154,10 @@ function renderToday(): string {
   const given = schedule.filter(item => item.log?.status === 'given').length;
   const exceptions = schedule.filter(item => item.log && item.log.status !== 'given').length;
   const overdue = schedule.filter(item => !item.log && item.dueAt.getTime() < Date.now()).length;
-  const who = state.patientName ? `${state.patientName}’s dose board` : 'Today’s dose board';
+  if (!demoMode && !state.medications.some(medication => medication.active)) return renderLanding();
+  const who = demoMode ? `Sample dose board for ${state.patientName || 'Meera'}` : state.patientName ? `${state.patientName}’s dose board` : 'Today’s dose board';
   const action = `<button class="button primary no-print" type="button" data-add-med>＋ Add medication</button>`;
-  let content = pageHead(formatDate(today), who, 'A shared, factual record of what was given—not another reminder.', action);
-  if (!state.medications.some(medication => medication.active)) {
-    content += `<section class="hero-empty" aria-labelledby="empty-title">
-      <div class="hero-copy"><p class="eyebrow">Start the night watch</p><h2 id="empty-title">Make the next handoff unambiguous.</h2>
-        <p>Add the medicines and times from the existing care plan. When a dose is due, a caregiver records given, skipped, or uncertain with their initials.</p>
-        <div class="button-row"><button class="button primary" type="button" data-add-med>Add the first medication</button><button class="button" type="button" data-view="handoff">How handoff works</button></div>
-      </div>
-      <picture class="hero-picture"><source srcset="/art/dose-watch.avif" type="image/avif"/><source srcset="/art/dose-watch.webp" type="image/webp"/><img class="hero-art" src="/art/dose-watch.jpg" width="960" height="640" alt="An illustrated night-time household dose board where three caregiver marks converge on one witnessed check" decoding="async" fetchpriority="high" /></picture>
-    </section>
-    <ul class="promise-row" aria-label="Product promises"><li><strong>Private by default</strong>Stored only on this device.</li><li><strong>Works offline</strong>Record care without a signal.</li><li><strong>Honest states</strong>Given, skipped, or uncertain.</li></ul>`;
-    return content;
-  }
+  let content = pageHead(formatDate(today), who, demoMode ? 'A filled example for a family sharing care. Change any status to see how the board works.' : 'Record whether each scheduled medication was given, skipped, or uncertain.', action);
   content += `<ul class="summary-strip" aria-label="Today’s dose summary">
     <li><span class="summary-number">${schedule.length}</span><span class="summary-label">Scheduled</span></li>
     <li class="given"><span class="summary-number">${given}</span><span class="summary-label">Given</span></li>
@@ -158,47 +216,85 @@ function renderSettings(): string {
   const unlockCopy = isUnlocked ? `<div class="notice success">Household unlock active — unlimited active medications are available on this device.</div><button class="button danger small" type="button" data-remove-license>Remove license from this device</button>` : `<div class="callout paid"><h3>Unlock unlimited medications — $19 once</h3><p>The free board includes three active medications. A one-time household unlock removes that limit; core status recording, accessibility, printing, and encrypted data export are always free. Sociobot/Dodo is the merchant of record.</p><a class="button primary" href="${checkoutUrl}">Buy household unlock</a></div><form id="license-form" class="form-gap"><div class="field"><label for="license-token">Already purchased? Paste your license</label><input id="license-token" name="token" autocomplete="off" required /><small>The license is stored only in this browser and verified with Sociobot.</small></div><button class="button" type="submit">Verify and restore</button><p class="error-text" data-form-error aria-live="polite"></p></form>`;
   return `${pageHead('This device', 'Household & settings', 'Name the board, set default initials, and manage the one-time household unlock.')}
     <div class="panel-grid"><section class="panel" aria-labelledby="household-title"><h2 id="household-title">Board details</h2><form id="settings-form"><div class="field"><label for="household-name">Household name</label><input id="household-name" name="householdName" maxlength="60" value="${h(state.householdName)}" required /></div><div class="field"><label for="patient-name">Person receiving care</label><input id="patient-name" name="patientName" maxlength="60" value="${h(state.patientName)}" /><small>Optional. Use a first name or familiar name if preferred.</small></div><div class="field"><label for="caregiver-initials">Your default initials</label><input id="caregiver-initials" name="caregiverInitials" maxlength="6" value="${h(state.caregiverInitials)}" autocomplete="off" /><small>Added to new dose records; editable each time.</small></div><button class="button primary" type="submit">Save board details</button></form></section><section class="panel" aria-labelledby="unlock-title"><h2 id="unlock-title">Household unlock</h2>${unlockCopy}</section></div>
-    <section class="panel section-gap" id="about-art" aria-labelledby="about-title"><h2 id="about-title">Privacy and purpose</h2><p class="muted">Medication names and dose records stay in IndexedDB on this device. There are no accounts, analytics, ads, cloud sync, or third-party scripts. Only license verification contacts Sociobot when you choose the paid unlock.</p><p class="muted">The first-run night-watch scene is original AI-generated artwork made for Dose Witness with the factory image model on August 27, 2026. It contains no real people or brands.</p><div class="button-row"><a class="button" href="/privacy" data-route="privacy">Read privacy policy</a><a class="button" href="/terms" data-route="terms">Read terms</a></div></section>`;
+    <section class="panel section-gap" id="about-art" aria-labelledby="about-title"><h2 id="about-title">Privacy and purpose</h2><p class="muted">Medication names and dose records stay in this browser. There are no accounts, analytics, ads, cloud sync, or third-party scripts. Only license verification contacts Sociobot when you choose the paid license.</p><p class="muted">The first-run night-watch scene is original AI-generated artwork made for Dose Witness with the factory image model on August 27, 2026. It contains no real people or brands.</p><div class="button-row"><a class="button" href="${withDemo('/privacy')}" data-route-link>Read privacy policy</a><a class="button" href="${withDemo('/terms')}" data-route-link>Read terms</a></div></section>`;
 }
 
-function renderLegal(kind: 'privacy' | 'terms'): void {
+function renderLegal(kind: 'privacy' | 'terms'): string {
   const isPrivacy = kind === 'privacy';
   const title = isPrivacy ? 'Privacy policy' : 'Terms of use';
-  const body = isPrivacy ? `<p><strong>Effective August 27, 2026.</strong></p><h2>What stays on your device</h2><p>Dose Witness stores household names, medication details, schedules, caregiver initials, dose statuses, notes, and activity history in your browser’s IndexedDB. We do not receive this information. Clearing site data removes it from that device.</p><h2>Encrypted handoffs</h2><p>Exports are encrypted in your browser with AES-256-GCM and a key derived from your passphrase using PBKDF2-SHA-256. The passphrase is never stored or sent to us. Anyone with both the file and passphrase can read the export.</p><h2>Purchases</h2><p>If you use the household unlock, the license token is stored in localStorage and sent to the Sociobot billing API for verification at most once per day. Sociobot and Dodo, the merchant of record, process checkout information under their own policies. Dose Witness includes no analytics or advertising trackers.</p><h2>Your choices</h2><p>You can print or export your board at any time. Remove all local data by clearing this site’s storage in browser settings. For privacy questions, contact privacy@sociobot.in.</p>`
-    : `<p><strong>Effective August 27, 2026.</strong></p><h2>Household record, not medical advice</h2><p>Dose Witness is a coordination utility, not a medical device. It does not verify prescriptions, identify interactions, recommend dosages, or determine whether a medication should be given. Follow the care plan from a qualified clinician. For urgent or uncertain medical situations, contact an appropriate medical professional or emergency service.</p><h2>Your responsibility</h2><p>Caregivers are responsible for checking the person, medication label, scheduled time, and existing instructions before recording a dose. A status records what a caregiver entered; it is not independent proof that a medication was administered.</p><h2>Purchase and refunds</h2><p>The optional $19 household unlock is a one-time purchase that enables unlimited active medications. Sociobot/Dodo is the merchant of record and handles payment and refunds. A refunded or revoked license may stop unlocking paid features; core records, printing, and export stay available.</p><h2>Availability</h2><p>The app is provided “as is” without a guarantee of uninterrupted availability. Keep an encrypted export or printed handoff appropriate to your household’s needs. Do not rely on this app as the only source of medication instructions.</p>`;
-  root.innerHTML = shell(`${pageHead('Plain-language policy', title, isPrivacy ? 'Your care records belong to your household.' : 'The boundaries that keep this utility honest.')}<article class="legal-copy">${body}<p><a class="button" href="/#settings" data-route="app">Back to Dose Witness</a></p></article>`);
-  document.title = `${title} — Dose Witness`;
-  bindShell();
+  const body = isPrivacy ? `<p><strong>Effective August 28, 2026.</strong></p><h2>What stays on your device</h2><p>Dose Witness stores household names, medication details, schedules, caregiver initials, dose statuses, notes, and activity history in this browser. We do not receive this information. Clearing site data removes it from that device.</p><h2>Encrypted handoffs</h2><p>Exports use AES-256-GCM encryption in your browser. Your passphrase creates the encryption key. The passphrase is never stored or sent to us. Anyone with both the file and passphrase can read the export.</p><h2>Purchases</h2><p>If you use the household license, its token is stored in this browser. It is sent to the Sociobot billing API for verification at most once per day. Sociobot and Dodo, the merchant of record, process checkout information under their own policies. Dose Witness includes no analytics or advertising trackers.</p><h2>Your choices</h2><p>You can print or export your board at any time. Remove local data by clearing this site’s storage in browser settings. For privacy questions, contact privacy@sociobot.in.</p>`
+    : `<p><strong>Effective August 28, 2026.</strong></p><h2>Household record, not medical advice</h2><p>Dose Witness keeps a household record. It is not a medical device. It does not verify prescriptions, identify interactions, recommend dosages, or determine whether a medication should be given. Follow the care plan from a qualified clinician. For urgent or uncertain situations, contact an appropriate medical professional or emergency service.</p><h2>Your responsibility</h2><p>Caregivers must check the person, medication label, scheduled time, and current instructions before recording a dose. A status records what a caregiver entered. It is not independent proof that a medication was administered.</p><h2>Purchase and refunds</h2><p>The optional $19 household license is a one-time purchase. It allows unlimited active medications. Sociobot and Dodo are the merchant of record and handle payment and refunds. A refunded or revoked license may stop paid features. Core records, printing, and export stay available.</p><h2>Availability</h2><p>The app is provided “as is” without a guarantee of uninterrupted availability. Keep an encrypted handoff file or printed summary for your household. Do not rely on this app as the only source of medication instructions.</p>`;
+  return `${pageHead('Household policy', title, isPrivacy ? 'Your care records belong to your household.' : 'The limits and responsibilities for using this household record.')}<article class="legal-copy">${body}<p><a class="button" href="${pathFor('settings')}" data-view="settings">Back to settings</a></p></article>`;
 }
 
-function render(): void {
-  if (location.pathname === '/privacy') return renderLegal('privacy');
-  if (location.pathname === '/terms') return renderLegal('terms');
-  const content = view === 'today' ? renderToday() : view === 'medications' ? renderMedications() : view === 'handoff' ? renderHandoff() : renderSettings();
+function renderNotFound(): string {
+  return `${pageHead('Not found', 'This page does not exist', 'The address may be old or mistyped. Your dose board has not changed.')}<div class="not-found-sign" aria-hidden="true">404</div><p><a class="button primary" href="${pathFor('today')}" data-view="today">Return to today’s board</a></p>`;
+}
+
+const metaByView: Record<View, { title: string; description: string }> = {
+  today: { title: 'Dose Witness — record household medication doses', description: 'Record given, skipped, or uncertain medication doses for an older relative on one household board.' },
+  medications: { title: 'Medications — Dose Witness', description: 'Enter medication names and schedules from the household’s current care plan.' },
+  handoff: { title: 'Handoff — Dose Witness', description: 'Print a caregiver summary or move an encrypted handoff file between devices.' },
+  settings: { title: 'Settings — Dose Witness', description: 'Manage board details and the optional Dose Witness household license.' },
+  privacy: { title: 'Privacy — Dose Witness', description: 'Learn what Dose Witness stores on this device and when it contacts Sociobot.' },
+  terms: { title: 'Terms — Dose Witness', description: 'Read the safety boundaries and terms for using Dose Witness.' },
+  'not-found': { title: 'Not found — Dose Witness', description: 'This Dose Witness page does not exist.' },
+};
+
+function updateMetadata(): void {
+  const meta = demoMode && view === 'today' ? { ...metaByView.today, title: 'Demo — Dose Witness', description: 'Try a filled Dose Witness board with isolated sample data.' } : metaByView[view];
+  document.title = meta.title;
+  document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute('content', meta.description);
+  document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.setAttribute('content', meta.title);
+  document.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.setAttribute('content', meta.description);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:title"]')?.setAttribute('content', meta.title);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:description"]')?.setAttribute('content', meta.description);
+  const canonicalPath = demoMode && view === 'today' ? '/demo' : location.pathname;
+  const canonical = `${APP_ORIGIN}${canonicalPath}`;
+  document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.setAttribute('href', canonical);
+  document.querySelector<HTMLMetaElement>('meta[property="og:url"]')?.setAttribute('content', canonical);
+}
+
+function render(options: { focus?: boolean } = {}): void {
+  const content = view === 'today' ? renderToday() : view === 'medications' ? renderMedications() : view === 'handoff' ? renderHandoff() : view === 'settings' ? renderSettings() : view === 'privacy' ? renderLegal('privacy') : view === 'terms' ? renderLegal('terms') : renderNotFound();
   root.innerHTML = shell(content);
-  document.title = `${view === 'today' ? 'Today' : view === 'settings' ? 'Household & settings' : view[0].toUpperCase() + view.slice(1)} — Dose Witness`;
+  updateMetadata();
   bindShell();
-  bindView();
+  if (!['privacy', 'terms', 'not-found'].includes(view)) bindView();
+  const target = location.hash === '#about-art' ? root.querySelector<HTMLElement>('#about-title') : root.querySelector<HTMLElement>('h1');
+  if (target && (options.focus || location.hash === '#about-art')) {
+    target.tabIndex = -1;
+    requestAnimationFrame(() => { target.focus({ preventScroll: location.hash !== '#about-art' }); target.scrollIntoView({ block: 'start' }); });
+  }
+  const announcer = root.querySelector<HTMLElement>('#route-announcer');
+  if (options.focus && announcer) announcer.textContent = document.title;
 }
 
 function bindShell(): void {
   root.querySelectorAll<HTMLElement>('[data-view]').forEach(element => element.addEventListener('click', event => {
     event.preventDefault();
     const next = element.dataset.view as View;
-    history.pushState({}, '', `/#${next}`);
+    history.pushState({}, '', pathFor(next));
     view = next;
-    render();
-    document.querySelector<HTMLElement>('#main-content')?.focus();
+    render({ focus: true });
   }));
-  root.querySelectorAll<HTMLAnchorElement>('[data-route]').forEach(link => link.addEventListener('click', event => {
+  root.querySelectorAll<HTMLAnchorElement>('[data-route-link]').forEach(link => link.addEventListener('click', event => {
     event.preventDefault();
-    const route = link.dataset.route;
-    const url = route === 'app' ? link.getAttribute('href') ?? '/#today' : `/${route}`;
-    history.pushState({}, '', url);
-    if (route === 'app') view = readView();
-    render();
-    scrollTo({ top: 0 });
+    const href = link.getAttribute('href') ?? '/';
+    history.pushState({}, '', href);
+    demoMode = location.pathname === '/demo' || new URLSearchParams(location.search).get('demo') === '1';
+    view = readView();
+    if (demoMode && !sessionStorage.getItem(DEMO_KEY)) sessionStorage.setItem(DEMO_KEY, JSON.stringify(sampleState()));
+    if (demoMode) state = normalizeDemoState();
+    render({ focus: true });
   }));
+  root.querySelector<HTMLButtonElement>('[data-reset-demo]')?.addEventListener('click', () => {
+    state = sampleState();
+    sessionStorage.setItem(DEMO_KEY, JSON.stringify(state));
+    render({ focus: true });
+    toast('Demo restored to its starting sample.');
+  });
+  root.querySelector<HTMLButtonElement>('[data-start-real]')?.addEventListener('click', () => void startRealBoard());
 }
 
 function bindView(): void {
@@ -218,11 +314,12 @@ function bindView(): void {
 function openMedicationDialog(id?: string): void {
   const medication = id ? state.medications.find(item => item.id === id) : undefined;
   if (!medication && state.medications.filter(item => item.active).length >= 3 && !isUnlocked) {
-    view = 'settings'; history.pushState({}, '', '/#settings'); render(); toast('The free board already has three active medications.'); return;
+    view = 'settings'; history.pushState({}, '', pathFor('settings')); render({ focus: true }); toast('The free board already has three active medications.'); return;
   }
   const times = medication?.times ?? ['08:00'];
   const dialog = document.createElement('dialog');
-  dialog.innerHTML = `<form method="dialog" class="dialog-inner" id="medication-form"><div class="dialog-head"><div><p class="eyebrow">Care plan</p><h2>${medication ? 'Edit medication' : 'Add medication'}</h2></div><button class="icon-button" type="button" data-close aria-label="Close dialog">×</button></div>
+  dialog.setAttribute('aria-labelledby', 'medication-dialog-title');
+  dialog.innerHTML = `<form method="dialog" class="dialog-inner" id="medication-form"><div class="dialog-head"><div><p class="eyebrow">Care plan</p><h2 id="medication-dialog-title">${medication ? 'Edit medication' : 'Add medication'}</h2></div><button class="icon-button" type="button" data-close aria-label="Close dialog">×</button></div>
     <div class="field"><label for="med-name">Medication name <span aria-hidden="true">*</span></label><input id="med-name" name="name" maxlength="80" value="${h(medication?.name ?? '')}" required /></div>
     <div class="field"><label for="med-strength">Strength as written</label><input id="med-strength" name="strength" maxlength="50" value="${h(medication?.strength ?? '')}" placeholder="For example, 10 mg" /></div>
     <div class="field"><label for="med-instructions">Existing instructions</label><textarea id="med-instructions" name="instructions" maxlength="240" placeholder="Copy the care plan; do not add new medical advice">${h(medication?.instructions ?? '')}</textarea></div>
@@ -262,7 +359,8 @@ function openDoseDialog(scheduleKey: string): void {
   if (!dose) { toast('That scheduled dose is no longer on today’s board.'); return; }
   const current = dose.log;
   const dialog = document.createElement('dialog');
-  dialog.innerHTML = `<form method="dialog" class="dialog-inner" id="dose-form"><div class="dialog-head"><div><p class="eyebrow">${h(formatTime(dose.dueAt))} dose</p><h2>Witness ${h(dose.medication.name)}</h2></div><button class="icon-button" type="button" data-close aria-label="Close dialog">×</button></div>
+  dialog.setAttribute('aria-labelledby', 'dose-dialog-title');
+  dialog.innerHTML = `<form method="dialog" class="dialog-inner" id="dose-form"><div class="dialog-head"><div><p class="eyebrow">${h(formatTime(dose.dueAt))} dose</p><h2 id="dose-dialog-title">Witness ${h(dose.medication.name)}</h2></div><button class="icon-button" type="button" data-close aria-label="Close dialog">×</button></div>
     <fieldset class="status-options"><legend>What happened? <span aria-hidden="true">*</span></legend>${(['given','skipped','uncertain'] as DoseStatus[]).map(status => `<div class="status-option ${status}"><input id="status-${status}" name="status" type="radio" value="${status}" ${current?.status === status || (!current && status === 'given') ? 'checked' : ''}/><label for="status-${status}"><span class="status-mark" aria-hidden="true">${status === 'given' ? '✓' : status === 'skipped' ? '—' : '?'}</span>${statusLabel(status)}</label></div>`).join('')}</fieldset>
     <div class="field"><label for="witness">Caregiver initials <span aria-hidden="true">*</span></label><input id="witness" name="witness" maxlength="6" value="${h(current?.witness ?? state.caregiverInitials)}" autocomplete="off" required /></div>
     <div class="field"><label for="dose-note">Handoff note</label><textarea id="dose-note" name="note" maxlength="240" placeholder="Optional: what should the next caregiver know?">${h(current?.note ?? '')}</textarea><small>For uncertainty or a skipped dose, add useful facts—not medical advice.</small></div>
@@ -315,7 +413,7 @@ async function handleImport(event: SubmitEvent): Promise<void> {
     if (button) { button.disabled = true; button.textContent = 'Opening…'; }
     const incoming = await decryptState(await file.text(), String(data.get('passphrase')));
     state = mergeStates(state, incoming);
-    await saveState(state); form.reset(); render(); toast('Encrypted handoff merged into this board.');
+    await saveCurrentState(); form.reset(); render(); toast('Encrypted handoff merged into this board.');
   } catch (error) { setFormError(form, error instanceof Error ? error.message : 'Could not import this handoff.'); }
   finally { if (button?.isConnected) { button.disabled = false; button.textContent = 'Open and merge'; } }
 }
@@ -352,8 +450,22 @@ function setFormError(form: HTMLFormElement, message: string): void {
 
 async function persist(message: string): Promise<void> {
   state.updatedAt = new Date().toISOString();
-  try { await saveState(state); toast(message); }
+  try { await saveCurrentState(); toast(message); }
   catch { toast('This change could not be saved. Check private browsing or device storage.'); }
+}
+
+async function saveCurrentState(): Promise<void> {
+  if (demoMode) sessionStorage.setItem(DEMO_KEY, JSON.stringify(state));
+  else await saveState(state);
+}
+
+async function startRealBoard(): Promise<void> {
+  sessionStorage.removeItem(DEMO_KEY);
+  demoMode = false;
+  history.pushState({}, '', '/');
+  view = 'today';
+  state = await loadState();
+  render({ focus: true });
 }
 
 function toast(message: string, action?: { label: string; run: () => void }): void {
@@ -385,7 +497,12 @@ function registerServiceWorker(): void {
 async function start(): Promise<void> {
   captureLicenseFromUrl();
   isUnlocked = cachedLicenseIsValid();
-  try { state = await loadState(); }
+  try {
+    if (demoMode) {
+      if (!sessionStorage.getItem(DEMO_KEY)) sessionStorage.setItem(DEMO_KEY, JSON.stringify(sampleState()));
+      state = normalizeDemoState();
+    } else state = await loadState();
+  }
   catch {
     state = { version: 1, householdName: 'Our care circle', patientName: '', caregiverInitials: '', medications: [], logs: [], audit: [], updatedAt: new Date().toISOString() };
     root.innerHTML = shell(`${pageHead('Storage unavailable', 'This board could not open', 'Your browser blocked private device storage. Allow site storage or leave private browsing, then reload.')}<button class="button primary" type="button" data-reload>Try again</button>`);
@@ -396,17 +513,13 @@ async function start(): Promise<void> {
   if (localStorage.getItem('sb_license:care-dose-board')) verifyLicense().then(result => { if (!result.skipped) { isUnlocked = result.valid; render(); if (!result.valid) toast('The saved license is no longer active.'); } }).catch(() => undefined);
 }
 
-document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click', event => {
-  event.preventDefault();
-  const main = document.querySelector<HTMLElement>('#main-content');
-  if (!main) return;
-  history.replaceState(null, '', '#main-content');
-  main.focus({ preventScroll: true });
-  main.scrollIntoView();
+addEventListener('popstate', () => {
+  demoMode = location.pathname === '/demo' || new URLSearchParams(location.search).get('demo') === '1';
+  view = readView();
+  if (demoMode) state = normalizeDemoState();
+  else void loadState().then(realState => { state = realState; render({ focus: true }); });
+  if (demoMode) render({ focus: true });
 });
-
-addEventListener('hashchange', () => { view = readView(); render(); });
-addEventListener('popstate', () => { view = readView(); render(); });
 addEventListener('online', () => { isOnline = true; render(); toast('Back online. Your local board stayed available.'); });
 addEventListener('offline', () => { isOnline = false; render(); });
 
@@ -414,7 +527,6 @@ document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click
   event.preventDefault();
   const main = document.querySelector<HTMLElement>('#main-content');
   if (!main) return;
-  history.replaceState(history.state, '', '#main-content');
   main.focus({ preventScroll: true });
   main.scrollIntoView({ block: 'start' });
 });

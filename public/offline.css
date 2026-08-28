@@ -5,3 +5,4 @@ h1 { font-family: "Arial Narrow", sans-serif; text-transform: uppercase; letter-
 p { font-size: 18px; line-height: 1.55; color: #b7cad0; }
 .try-again { display: inline-block; min-height: 48px; box-sizing: border-box; padding: 10px 20px; border: 2px solid #45e6e1; background: #45e6e1; color: #071319; font-weight: 800; text-decoration: none; }
 .try-again:focus-visible { outline: 3px solid #f8f5e9; outline-offset: 4px; }
+.signal { color: #ffc65a; font-family: "Arial Narrow", sans-serif; font-size: 14px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; }

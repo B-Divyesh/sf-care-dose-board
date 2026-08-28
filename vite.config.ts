@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { defineConfig } from 'vitest/config';
+import packageJson from './package.json' with { type: 'json' };
 
 // The worker contains the digest itself, so it is the only circular release file.
 const releaseExcludedFiles = new Set(['sw.js']);
@@ -24,7 +25,11 @@ async function stampRelease(dist: string): Promise<void> {
     digest.update(await readFile(join(dist, file)));
   }
   const release = digest.digest('hex').slice(0, 16);
-  const worker = (await readFile(join(dist, 'sw.js'), 'utf8')).replaceAll('__RELEASE_ID__', release);
+  const html = await readFile(join(dist, 'index.html'), 'utf8');
+  const builtAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^\"]+)"/g)].map(match => match[1]);
+  const worker = (await readFile(join(dist, 'sw.js'), 'utf8'))
+    .replaceAll('__RELEASE_ID__', release)
+    .replaceAll('__ASSET_URLS__', JSON.stringify(builtAssets));
   const manifest = (await readFile(join(dist, 'manifest.webmanifest'), 'utf8')).replaceAll('__RELEASE_ID__', release);
   await Promise.all([
     writeFile(join(dist, 'sw.js'), worker),
@@ -33,6 +38,9 @@ async function stampRelease(dist: string): Promise<void> {
 }
 
 export default defineConfig({
+  define: {
+    __BUILD_ID__: JSON.stringify(`v${packageJson.version}`),
+  },
   test: {
     include: ['src/**/*.test.ts', 'quality/**/*.test.ts'],
   },

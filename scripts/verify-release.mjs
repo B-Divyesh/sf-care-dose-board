@@ -24,10 +24,14 @@ for (const file of releaseFiles) {
 }
 const release = digest.digest('hex').slice(0, 16);
 const worker = await readFile(join(dist, 'sw.js'), 'utf8');
+const index = await readFile(join(dist, 'index.html'), 'utf8');
 const manifest = JSON.parse(await readFile(join(dist, 'manifest.webmanifest'), 'utf8'));
 const config = JSON.parse(await readFile(join(dist, 'staticwebapp.config.json'), 'utf8'));
 
 if (!worker.includes(`dose-witness-shell-${release}`)) throw new Error('Service-worker cache namespace does not match release content.');
+for (const match of index.matchAll(/(?:src|href)="(\/assets\/[^\"]+)"/g)) {
+  if (!worker.includes(match[1])) throw new Error(`Service worker does not precache ${match[1]}.`);
+}
 if (!manifest.start_url.endsWith(`pwa-${release}`)) throw new Error('Manifest start URL does not match release content.');
 const assetRoute = config.routes.find(route => route.route === '/assets/*');
 if (assetRoute?.headers?.['Cache-Control'] !== 'public, max-age=31536000, immutable') throw new Error('Hashed asset cache policy is missing.');

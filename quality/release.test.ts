@@ -26,6 +26,7 @@ describe('static release policy', () => {
     const worker = await readPublic('sw.js');
     const manifest = await readPublic('manifest.webmanifest');
     expect(worker).toContain('dose-witness-shell-__RELEASE_ID__');
+    expect(worker).toContain('const BUILT_ASSETS = __ASSET_URLS__');
     expect(manifest).toContain('pwa-__RELEASE_ID__');
   });
 });

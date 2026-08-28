@@ -1,8 +1,15 @@
 // Replaced during the production build with a digest of this release's content.
 const CACHE = 'dose-witness-shell-__RELEASE_ID__';
+const BUILT_ASSETS = __ASSET_URLS__;
 const SHELL = [
   '/',
   '/index.html',
+  '/demo',
+  '/medications',
+  '/handoff',
+  '/settings',
+  '/privacy',
+  '/terms',
   '/offline.html',
   '/offline.css',
   '/manifest.webmanifest',
@@ -10,20 +17,20 @@ const SHELL = [
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable-512.png',
+  '/icons/apple-touch-icon.png',
   '/art/dose-watch.avif',
   '/art/dose-watch.webp',
-  '/art/dose-watch.jpg'
+  '/art/dose-watch.jpg',
+  '/art/og-dose-watch.jpg',
+  ...BUILT_ASSETS
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(async cache => {
-    await cache.addAll(SHELL);
-    const index = await fetch('/index.html');
-    const html = await index.clone().text();
-    await cache.put('/index.html', index);
-    const builtAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^\"]+)"/g)].map(match => match[1]);
-    if (builtAssets.length) await cache.addAll(builtAssets);
-  }));
+  event.waitUntil(caches.open(CACHE).then(cache => Promise.all(SHELL.map(async url => {
+    const response = await fetch(new Request(url, { cache: 'reload' }));
+    if (!response.ok) throw new Error(`Could not cache ${url}`);
+    await cache.put(url, response);
+  }))));
   self.skipWaiting();
 });
 
@@ -46,8 +53,10 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put('/index.html', copy));
+          if (response.ok) {
+            const copy = response.clone();
+            event.waitUntil(caches.open(CACHE).then(cache => cache.put('/index.html', copy)));
+          }
           return response;
         })
         .catch(async () => (await caches.match('/index.html')) || caches.match('/offline.html'))
