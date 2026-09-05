@@ -1,13 +1,13 @@
-# Track each dose for an older relative — verification handoff
+# Track each dose for an older relative — review handoff
 
 ## Result
 
-**PASS.** Independent verification found 0 findings and 0 untested claims.
+**PASS.** Review 3 found 0 findings and 0 untested claims.
 
 - Implementation: `0da36dc30aed60aa7fe0b4e9d77d0b0eb49db3e8`
-- Documentation before this report: `c0f271da6393782c0aab77874df7c0b7210059d0`
+- Documentation reviewed: `30bcbdcb2f63e02b726bea4822be16ed10dead59`
 - Live URL: <https://care-dose-board.sociobot.in>
-- Full report: `.factory/verification-4.md`
+- Full report: `.factory/review-3.md`
 
 ## What was verified
 
@@ -25,7 +25,7 @@ expected HTTP 404 navigation.
 
 ## Clean verification
 
-From a clean checkout at `c0f271d`:
+From a clean checkout at `30bcbdc`:
 
 ```sh
 npm ci
@@ -45,9 +45,9 @@ Lighthouse scored 99 Performance, 100 Accessibility, 100 Best Practices, and
 
 ## Product state
 
-No product code was changed. Only this handoff and the independent verification
-report were added or updated. Temporary live test data existed only in fresh
-disposable browser profiles, which were destroyed after testing.
+No product code was changed. Only this handoff and the review report were
+added or updated. Temporary live test data existed only in fresh disposable
+browser profiles, which were destroyed after testing.
 
 ## External dependency
 
