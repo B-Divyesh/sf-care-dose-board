@@ -1,54 +1,74 @@
-# Dose Witness — adversarial review 2 handoff
+# Dose Witness — repair 2 handoff
 
 ## Result
 
-**FAIL.** The full report is in `.factory/review-2.md`. This was a review-only
-work order; no product source was changed.
+**PASS.** This repair resolves every finding in `.factory/review-2.md`.
 
-The review records 5 blocking, 1 major, and 4 minor findings. The blocking
-items are the disappearing phone demo banner, dead Sociobot checkout, missing
-production-404 metadata, a mobile artwork target hidden by the sticky header,
-and the production 404’s missing standard footer.
+Implementation SHA: `0da36dc30aed60aa7fe0b4e9d77d0b0eb49db3e8`
 
-## Verification performed
+The deployed implementation is the same SHA. The later documentation commit is
+separate so the deployed product revision stays identifiable.
 
-- Opened production cold in fresh 390×844 and 1440×900 Chromium contexts.
-- Entered the one-click demo, changed sample data, reset it, exited it, and
-  confirmed a completed real-board save remained separate.
-- Recorded the live demo request log, confirmed same-origin-only requests,
-  confirmed no demo IndexedDB database, and reloaded the demo offline.
-- Crawled every link exposed by `/`, `/demo`, `/medications`, `/handoff`,
-  `/settings`, `/privacy`, and `/terms`.
-- Checked titles, descriptions, canonicals, Open Graph data, favicons, h1/main
-  counts, header/footer presence, deep links, Back focus, and the real HTTP 404.
-- Ran live axe scans on all app routes and the 404; there were no serious or
-  critical violations.
-- Compared the clean build’s `dist/index.html` and `dist/404.html` with live;
-  both pairs were byte-identical.
-- Audited every landing and README sentence with a word count and mapped each
-  copy flag to a proposed rewrite.
-- Rechecked every B1–B4 and M1–M6 item from `.factory/review-1.md` live and in
-  source.
+## What changed
 
-## Clean-clone commands
+- Kept the demo notice sticky on phones below the header. Its label, reset, and
+  exit controls stay visible after scrolling and each control is at least 44 px.
+- Put the three plain facts directly after the first action, before the artwork.
+- Removed the unavailable paid limit, price, checkout link, license storage,
+  license verification, and external API permission. A fourth medication now
+  adds without a purchase path.
+- Completed the real static 404 with description, canonical, Open Graph,
+  Twitter, icon links, wordmark header, legal footer, publisher, and a
+  build-version stamp. The local browser suite now uses `scripts/serve-dist.mjs`
+  so it tests the actual HTTP 404 behavior.
+- Offset the artwork target below the sticky phone header and added a visual
+  target-position assertion.
+- Rewrote the four flagged README sections in plain words and updated the copy
+  audit and demo guide.
 
-The clean clone was at `/tmp/tmp.07z790V8yh/repo`, SHA `d6d1da0`.
+## Verification
+
+Clean setup used `npm ci`. These commands passed:
 
 ```sh
-npm ci
-npm test
-npm run build
-npm run verify:release
-npm run test:e2e
+npm test                 # 9 unit/policy tests
+npm run build            # writes dist/
+npm run verify:release   # release 4b8ddcd1b99b7856
+npm run test:e2e         # 21 browser tests
 ```
 
-Results: 9/9 unit/policy tests passed, the build produced `dist/`, release
-`ded8b26b2a83efd1` verified, and 20/20 browser tests passed. Every one of the 14
-commands in `.factory/claims.json` was also run separately and passed.
+Each of the 14 exact claim commands in `.factory/claims.json` was then run
+separately and passed.
 
-## What remains
+The built static preview passed `/opt/fleet/lib/verify-url.sh`: no console
+errors, title/lang, one h1/main, and complete image alt text. The standalone
+`@axe-core/cli` could not start because this container has no system Chrome.
+The shipped Playwright Axe integration ran instead on every app route and the
+HTTP 404 at desktop and 390 px; it found zero serious or critical violations.
 
-Resolve F-2-1 through F-2-10 in `.factory/review-2.md`, deploy the exact repair,
-then rerun the full review against production. In particular, add production-
-surface coverage: the current Vite test masks the static 404, and the current
-license test mocks a valid token without checking the advertised checkout.
+Live verification after deployment:
+
+- `https://care-dose-board.sociobot.in/` returned 200. Its HTML exactly matched
+  `dist/index.html` by SHA-256.
+- An unknown live URL returned HTTP 404. Its document exactly matched
+  `dist/404.html` and had the expected metadata, header, footer, and build id.
+- Fresh desktop and phone visits had no app console errors. Before scrolling,
+  the job was “Track each dose for an older relative,” the audience was families
+  sharing care, and the first action was “Try it with sample data.”
+- The 390 px first screen showed all three facts. The one-click sample showed
+  three dose cards; its banner stayed at y=65 directly below the 65 px header.
+  Reset restored the given sample record. Exiting demo left a real test board
+  unchanged.
+- Live Playwright Axe scans covered `/`, `/demo`, `/medications?demo=1`,
+  `/handoff?demo=1`, `/settings?demo=1`, `/privacy`, `/terms`, and the 404 at
+  desktop and phone sizes. All serious/critical counts were zero.
+- Mobile Lighthouse: Performance 100, Accessibility 100, Best Practices 100,
+  SEO 100. FCP 0.9 s, LCP 1.2 s, TBT 0 ms, CLS 0.
+
+## Known dependency
+
+The central Sociobot catalog does not currently enable a hosted checkout for
+this product. To avoid a dead purchase promise, this release offers every
+medication card without a paid limit. If a one-time license returns, first
+enable the real catalog product, then add the hosted checkout and a non-charging
+checkout contract test before advertising a price.
