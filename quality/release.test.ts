@@ -15,11 +15,11 @@ describe('static release policy', () => {
     expect(config.responseOverrides['404']).toEqual({ rewrite: '/404.html', statusCode: 404 });
   });
 
-  it('locks down browser capabilities while allowing the optional license verification', async () => {
+  it('locks down browser capabilities without permitting outside connections', async () => {
     const config = JSON.parse(await readPublic('staticwebapp.config.json'));
     const headers = config.globalHeaders;
     expect(headers['Content-Security-Policy']).toContain("default-src 'self'");
-    expect(headers['Content-Security-Policy']).toContain('connect-src \'self\' https://api.sociobot.in');
+    expect(headers['Content-Security-Policy']).toContain("connect-src 'self'");
     expect(headers['Content-Security-Policy']).toContain("script-src 'self'");
     expect(headers['Permissions-Policy']).toContain('camera=()');
     expect(headers['Permissions-Policy']).toContain('geolocation=()');

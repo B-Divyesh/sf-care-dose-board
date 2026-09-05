@@ -1,4 +1,4 @@
-# Dose Witness demo sandbox
+# Try the Dose Witness sample safely
 
 ## Open the demo
 

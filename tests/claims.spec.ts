@@ -33,6 +33,25 @@ test('@claim:single-visible-record keeps one current dose card and visible corre
 });
 
 test('@claim:demo-isolation resets, exits, and never changes the real board', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Try it with sample data' }).click();
+  await expect(page).toHaveURL('/demo');
+  await page.locator('.dose-card').last().scrollIntoViewIfNeeded();
+  for (const control of [
+    page.getByText('Demo — sample data, nothing is saved'),
+    page.getByRole('button', { name: 'Reset demo' }),
+    page.getByRole('button', { name: 'Start for real' }),
+  ]) await expect(control).toBeInViewport();
+  await expect.poll(async () => {
+    const [banner, header] = await Promise.all([page.locator('.demo-banner').boundingBox(), page.getByRole('banner').boundingBox()]);
+    return (banner?.y ?? -Infinity) >= (header?.y ?? 0) + (header?.height ?? 0);
+  }).toBe(true);
+  await page.getByRole('button', { name: 'Reset demo' }).click();
+  await expect(page.locator('.dose-card').filter({ hasText: 'Blood pressure tablet' })).toContainText('Given');
+  await page.getByRole('button', { name: 'Start for real' }).click();
+  await expect(page).toHaveURL('/');
+
   await page.goto('/');
   await page.getByRole('button', { name: 'Set up my board' }).click();
   await page.getByLabel('Medication name *').fill('Real household tablet');
@@ -139,19 +158,17 @@ test('@claim:merge-resolution retains unique records and the newest conflicting 
   await expect(page.getByRole('heading', { name: 'Imported-only tablet' })).toBeVisible();
 });
 
-test('@claim:three-medication-license enforces the free limit and accepts a valid license', async ({ page }) => {
-  await page.route('https://api.sociobot.in/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"valid":true,"reason":"ok"}' }));
-  await page.goto('/demo');
+test('@claim:no-paid-checkout adds a fourth medication without a purchase path', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', request => requests.push(request.url()));
+  await page.goto('/medications?demo=1');
   await page.getByRole('button', { name: 'Add medication' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Household & settings' })).toBeVisible();
-  await expect(page.getByText(/free board includes three active medications/i)).toBeVisible();
-  await expect(page.getByText('$19 once')).toBeVisible();
-  await page.getByLabel('Already purchased? Paste your license').fill('valid-test-license');
-  await page.getByRole('button', { name: 'Verify and restore' }).click();
-  await expect(page.getByText(/Household unlock active/)).toBeVisible();
-  await page.getByRole('link', { name: /medications/i }).first().click();
-  await page.getByRole('button', { name: 'Add medication' }).click();
-  await expect(page.getByRole('dialog', { name: 'Add medication' })).toBeVisible();
+  await page.getByLabel('Medication name *').fill('Fourth sample tablet');
+  await page.getByLabel('Time 1').fill('16:30');
+  await page.getByRole('button', { name: 'Add to board' }).click();
+  await expect(page.getByRole('heading', { name: 'Fourth sample tablet' })).toBeVisible();
+  expect(await page.locator('a[href*="checkout"], a[href*="api.sociobot.in"]').count()).toBe(0);
+  expect(requests.every(url => new URL(url).origin === 'http://127.0.0.1:4173')).toBe(true);
 });
 
 test('@claim:print-handoff opens printing with the complete caregiver summary', async ({ page }) => {
@@ -163,8 +180,8 @@ test('@claim:print-handoff opens printing with the complete caregiver summary', 
   expect(await page.evaluate(() => sessionStorage.getItem('print-called'))).toBe('yes');
 });
 
-test('@claim:route-metadata gives every route a title, canonical, focus, and a real not-found screen', async ({ page }) => {
-  const routes = [['/', 'Dose Witness — record household medication doses'], ['/demo', 'Demo — Dose Witness'], ['/privacy', 'Privacy — Dose Witness'], ['/terms', 'Terms — Dose Witness'], ['/not-a-real-route-review', 'Not found — Dose Witness']];
+test('@claim:route-metadata gives every route a title, canonical, focus, and a complete HTTP not-found page', async ({ page }) => {
+  const routes = [['/', 'Dose Witness — record household medication doses'], ['/demo', 'Demo — Dose Witness'], ['/privacy', 'Privacy — Dose Witness'], ['/terms', 'Terms — Dose Witness']];
   for (const [path, title] of routes) {
     await page.goto(path);
     await expect(page).toHaveTitle(title);
@@ -172,7 +189,19 @@ test('@claim:route-metadata gives every route a title, canonical, focus, and a r
     await expect(page.locator('main')).toHaveCount(1);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   }
+  const notFound = await page.goto('/not-a-real-route-review');
+  expect(notFound?.status()).toBe(404);
+  await expect(page).toHaveTitle('Not found — Dose Witness');
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /does not exist/i);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://care-dose-board.sociobot.in/404');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /og-dose-watch\.jpg$/);
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/icons/icon.svg');
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/icons/apple-touch-icon.png');
   await expect(page.getByRole('heading', { name: 'This page does not exist' })).toBeVisible();
+  await expect(page.getByRole('banner')).toContainText('Dose Witness');
+  await expect(page.getByRole('contentinfo')).toContainText('Built by Param Factory');
+  await expect(page.getByRole('contentinfo')).toContainText(/Build v\d+\.\d+\.\d+/);
   await page.goto('/');
   await page.getByRole('link', { name: /medications/i }).first().click();
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
@@ -180,7 +209,12 @@ test('@claim:route-metadata gives every route a title, canonical, focus, and a r
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
   await page.getByRole('link', { name: 'Read artwork details' }).click();
   await expect(page).toHaveURL('/settings#about-art');
-  await expect(page.getByRole('heading', { name: 'Privacy and purpose' })).toBeFocused();
+  const about = page.getByRole('heading', { name: 'Privacy and purpose' });
+  await expect(about).toBeFocused();
+  await expect.poll(async () => {
+    const [targetBox, headerBox] = await Promise.all([about.boundingBox(), page.getByRole('banner').boundingBox()]);
+    return (targetBox?.y ?? -Infinity) >= (headerBox?.y ?? 0) + (headerBox?.height ?? 0);
+  }).toBe(true);
 });
 
 test('@claim:accessible-use supports keyboard, reduced motion, mobile zoom, and serious axe checks', async ({ page }) => {
@@ -207,7 +241,7 @@ test('@claim:accessible-use supports keyboard, reduced motion, mobile zoom, and 
     });
     expect(clearOfDock).toBe(true);
   }
-  for (const path of ['/', '/demo', '/privacy', '/terms']) {
+  for (const path of ['/', '/demo', '/medications?demo=1', '/handoff?demo=1', '/settings?demo=1', '/privacy', '/terms', '/not-a-real-route-review']) {
     await page.goto(path);
     const scan = await new AxeBuilder({ page }).analyze();
     expect(scan.violations.filter(item => ['serious', 'critical'].includes(item.impact ?? ''))).toEqual([]);
@@ -247,7 +281,9 @@ test('@claim:release-package verifies the documented static, private, original, 
   expect(await readFile(resolve('LICENSE'), 'utf8')).toContain('Permission is hereby granted, free of charge');
   expect(config.globalHeaders['Content-Security-Policy']).toContain("script-src 'self'");
   expect(config.routes.find((route: { route: string }) => route.route === '/assets/*').headers['Cache-Control']).toContain('immutable');
-  const licenseSource = await readFile(resolve('src/license.ts'), 'utf8');
-  expect(licenseSource).toContain('https://api.sociobot.in/api/v1/products/');
-  expect(licenseSource).not.toMatch(/stripe|paypal/i);
+  const artwork = await page.request.get('/art/dose-watch.avif');
+  expect(artwork.status()).toBe(200);
+  expect(artwork.headers()['content-type']).toContain('image/avif');
+  const response = await page.request.get('/');
+  expect(response.headers()['content-security-policy']).toContain("default-src 'self'");
 });

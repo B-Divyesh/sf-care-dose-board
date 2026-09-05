@@ -195,6 +195,7 @@ dialog::backdrop { background: rgb(1 8 11 / 78%); backdrop-filter: blur(3px); }
 .legal-copy { max-width: 760px; }
 .legal-copy h2 { margin-top: 36px; }
 .legal-copy li, .legal-copy p { color: var(--muted); line-height: 1.65; }
+#about-title { scroll-margin-top: 96px; }
 
 .app-footer { border-top: 1px solid var(--line); background: var(--ink-900); }
 .footer-inner { width: min(1180px, 100%); margin: auto; padding: 28px 24px calc(28px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: 1fr auto; gap: 24px; color: var(--muted); font-size: 14px; }
@@ -208,9 +209,10 @@ dialog::backdrop { background: rgb(1 8 11 / 78%); backdrop-filter: blur(3px); }
 
 @media (max-width: 760px) {
   .header-inner { min-height: 64px; padding: 10px 16px; }
-  .demo-banner { position: relative; top: 0; padding: 10px 16px; align-items: flex-start; flex-wrap: wrap; gap: 4px 10px; }
-  .demo-banner > span { width: 100%; }
-  .demo-actions { width: 100%; margin-left: 0; justify-content: space-between; }
+  .demo-banner { position: sticky; top: 65px; min-height: 0; padding: 7px 16px 8px; display: grid; grid-template-columns: 1fr; gap: 4px; }
+  .demo-banner > span { display: none; }
+  .demo-actions { width: 100%; margin-left: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .demo-actions .text-button { justify-content: center; text-align: center; }
   .brand-sub, .desktop-nav { display: none; }
   main { padding: 32px 16px calc(168px + env(safe-area-inset-bottom)); scroll-padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
   .page-head { align-items: start; flex-direction: column; margin-bottom: 24px; }
@@ -237,6 +239,7 @@ dialog::backdrop { background: rgb(1 8 11 / 78%); backdrop-filter: blur(3px); }
   .mobile-nav .nav-link { min-width: 0; min-height: 58px; padding: 5px 3px; justify-content: center; font-size: 12px; }
   .toast-region { right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); left: 16px; }
   .toast { max-width: none; }
+  #about-title { scroll-margin-top: 80px; }
 }
 
 @media (max-width: 420px) {

@@ -31,9 +31,11 @@ async function stampRelease(dist: string): Promise<void> {
     .replaceAll('__RELEASE_ID__', release)
     .replaceAll('__ASSET_URLS__', JSON.stringify(builtAssets));
   const manifest = (await readFile(join(dist, 'manifest.webmanifest'), 'utf8')).replaceAll('__RELEASE_ID__', release);
+  const notFound = (await readFile(join(dist, '404.html'), 'utf8')).replaceAll('__BUILD_ID__', `v${packageJson.version}`);
   await Promise.all([
     writeFile(join(dist, 'sw.js'), worker),
     writeFile(join(dist, 'manifest.webmanifest'), manifest),
+    writeFile(join(dist, '404.html'), notFound),
   ]);
 }
 

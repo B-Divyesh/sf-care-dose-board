@@ -33,6 +33,20 @@ test('dialogs close with Escape and restore focus', async ({ page }) => {
   await expect(trigger).toBeFocused();
 });
 
+test('the first phone and desktop screens show all three plain product facts', async ({ page }) => {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+    for (const fact of ['Data stays on this device', 'Works offline', 'Three dose statuses']) {
+      const item = page.getByText(fact, { exact: true });
+      await expect(item).toBeInViewport();
+      const box = await item.boundingBox();
+      expect(box?.y).toBeGreaterThanOrEqual(0);
+      expect((box?.y ?? Infinity) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height);
+    }
+  }
+});
+
 test('legal pages have one main heading and no serious axe findings', async ({ page }) => {
   for (const path of ['/privacy', '/terms']) {
     await page.goto(path);
@@ -44,8 +58,9 @@ test('legal pages have one main heading and no serious axe findings', async ({ p
 });
 
 test('release worker cleans an older cache', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/offline.html');
   await page.evaluate(() => caches.open('dose-witness-shell-prior-release'));
+  await page.goto('/');
   await page.evaluate(() => navigator.serviceWorker.ready);
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   await page.reload();

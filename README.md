@@ -6,7 +6,7 @@ It keeps a household record. It is not a medical device. It does not provide dos
 
 Live product: <https://care-dose-board.sociobot.in>
 
-Try the isolated sample: <https://care-dose-board.sociobot.in/demo>
+Try the sample: <https://care-dose-board.sociobot.in/demo>
 
 ## Dose Witness features
 
@@ -16,7 +16,7 @@ Try the isolated sample: <https://care-dose-board.sociobot.in/demo>
 - Store records in this browser without an account, analytics, or cloud storage.
 - Encrypt handoff files and keep the latest record when devices are merged.
 - Install the app and continue recording after the connection drops.
-- Use three active medications for free. A $19 one-time household license removes that limit.
+- Add a fourth active medication without a purchase.
 - Use the app by keyboard or screen reader, with reduced motion and browser zoom.
 - Read the privacy policy at `/privacy` and terms at `/terms`.
 
@@ -50,7 +50,7 @@ npm run test:claims -- --grep @claim:offline-reload
 
 The build writes the static site to `dist/`, including `dist/index.html`. Preview it with `npm run preview`.
 
-The browser tests cover adding a medication and recording a status. They cover keyboard focus, offline reloads, worker updates, and route metadata. They also check legal pages, console errors, and serious or critical accessibility findings.
+The browser tests cover adding a medication and recording a status. They cover keyboard focus, offline reloads, app updates, and page titles and links. They also check legal pages, console errors, and serious or critical accessibility findings.
 
 ## Data ownership and device handoff
 
@@ -60,19 +60,17 @@ Download an encrypted handoff file, send the passphrase separately, then import 
 
 The app cannot recover an export passphrase. Keep a printed or encrypted backup. Clearing browser site data removes the local board.
 
-## Demo sandbox
+## Try the sample safely
 
-`/demo` and `/?demo=1` open realistic sample data in the `demo:dose-witness` session namespace. Demo actions never read or write the real `dose-witness` database. Reset restores the sample. Start for real discards the demo and opens the real board.
+`/demo` and `/?demo=1` open realistic sample data only in that browser tab. Demo actions never read or write the saved household board. Reset restores the sample. Start for real discards the demo and opens the real board.
 
 See [`.factory/demo.md`](.factory/demo.md) for sample details and verification steps.
 
 ## Deployment
 
-Deploy `dist/` as a static site. The host routes known app URLs to `index.html` and unknown URLs to `404.html`. `staticwebapp.config.json` defines the security headers. It prevents stale app files while caching versioned assets.
+Deploy `dist/` as the website. The host sends known app addresses to `index.html` and unknown addresses to `404.html`. `staticwebapp.config.json` sets browser security rules. It avoids stale app files and caches files whose names change with their contents.
 
-The build creates a release id from the complete output. `npm run verify:release` recomputes and checks that id.
-
-Checkout and license verification use only the Sociobot billing API. The product slug comes from this repository. No payment-provider credentials or product IDs are embedded.
+The build creates a unique label from its complete output. `npm run verify:release` recomputes and checks that label.
 
 ## Artwork and design sources
 

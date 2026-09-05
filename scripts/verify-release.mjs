@@ -17,10 +17,13 @@ const digest = createHash('sha256');
 for (const file of releaseFiles) {
   digest.update(file);
   const content = await readFile(join(dist, file));
-  // Build hashes the manifest with its placeholder, then stamps the derived ID.
-  digest.update(file === 'manifest.webmanifest'
+  // Build hashes generated metadata with placeholders, then stamps it after the digest is known.
+  const normalized = file === 'manifest.webmanifest'
     ? content.toString().replace(/pwa-[a-f0-9]{16}/, 'pwa-__RELEASE_ID__')
-    : content);
+    : file === '404.html'
+      ? content.toString().replace(/Build v\d+\.\d+\.\d+/, 'Build __BUILD_ID__')
+      : content;
+  digest.update(normalized);
 }
 const release = digest.digest('hex').slice(0, 16);
 const worker = await readFile(join(dist, 'sw.js'), 'utf8');
@@ -33,6 +36,7 @@ for (const match of index.matchAll(/(?:src|href)="(\/assets\/[^\"]+)"/g)) {
   if (!worker.includes(match[1])) throw new Error(`Service worker does not precache ${match[1]}.`);
 }
 if (!manifest.start_url.endsWith(`pwa-${release}`)) throw new Error('Manifest start URL does not match release content.');
+if (!/Build v\d+\.\d+\.\d+/.test(await readFile(join(dist, '404.html'), 'utf8'))) throw new Error('Not-found page is missing its stamped build id.');
 const assetRoute = config.routes.find(route => route.route === '/assets/*');
 if (assetRoute?.headers?.['Cache-Control'] !== 'public, max-age=31536000, immutable') throw new Error('Hashed asset cache policy is missing.');
 if (!config.globalHeaders?.['Content-Security-Policy'] || !config.globalHeaders?.['Permissions-Policy']) throw new Error('Browser hardening headers are missing.');
